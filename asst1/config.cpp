@@ -8,7 +8,7 @@
  * University of Toronto
  * Fall 2019
  */
- 
+
 #include "config.h"
 #include "player.h"
 #include "shoe.h"
@@ -37,7 +37,7 @@ Config::process_arguments(int argc, const char * argv[])
     /*
      * TODO: implement this
      */
-     
+
     if (argc == 2 && !strcmp(argv[1], "-h")) {
         return usage(argv[0]);
     }
@@ -46,14 +46,14 @@ Config::process_arguments(int argc, const char * argv[])
 	if (player == nullptr) {
 		fprintf(stderr, "Error: cannot instantiate Player. (bad file?)\n");
 		return usage(argv[0]);
-	}		
-	
+	}
+
 	shoe = Shoe::factory(this);
 	if (shoe == nullptr) {
 		fprintf(stderr, "Error: cannot instantiate Shoe. (bad file?)\n");
-		return usage(argv[0]);
-	}	
-	
+		return usage(argv[0]);;
+	}
+
 	return 0;
 }
 
@@ -61,8 +61,7 @@ Config::~Config()
 {
 	if (player != nullptr)
 		delete player;
-	
+
 	if (shoe != nullptr)
 		delete shoe;
 }
-
