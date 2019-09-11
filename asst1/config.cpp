@@ -51,7 +51,7 @@ Config::process_arguments(int argc, const char * argv[])
 	shoe = Shoe::factory(this);
 	if (shoe == nullptr) {
 		fprintf(stderr, "Error: cannot instantiate Shoe. (bad file?)\n");
-		return usage(argv[0]);;
+		return usage(argv[0]);
 	}
 
 	return 0;
