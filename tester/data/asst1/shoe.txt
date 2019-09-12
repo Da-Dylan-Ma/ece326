@@ -1,0 +1,16 @@
+// check for split limit
+88888888AAA
+
+// check for split aces
+AAAAAA9
+
+// check for split 10s
+79TQ98K
+
+// should stop on blackjack
+AK23
+AQAT
+QQJA
+
+// unused
+JQ5J4TT6KQ36Q22Q554Q7A273

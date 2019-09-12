@@ -1,0 +1,72 @@
+#!/bin/bash
+
+# This file has variables that are sourced by other scripts in this directory
+
+# where to find starter code
+SRC_PATH=${TESTER_PATH}/src
+
+# the prefix for group numbers (e.g. pl-101, os-106)
+PREFIX=pl
+
+# Head TA
+TA="Xue (Chloe) Geng <xue.geng@mail.utoronto.ca>"
+
+# git repo path
+GIT_REP=ssh://ug250.eecg.utoronto.ca/srv/git
+
+# starting number of student groups
+START=1
+
+# ending number of student groups
+END=99
+
+# name of grades files
+GRADES_FILE=grades.csv
+
+# Marks for each lab
+# Update these marks if the scripts are updated
+
+TOTAL_1=100
+TOTAL_2=100
+TOTAL_3=100
+TOTAL_4=100
+
+# Source path for each lab
+SRC_1=${SRC_PATH}/easybj.tar
+SRC_2=${SRC_PATH}/optimal.tar
+SRC_3=${SRC_PATH}/easyorm.tar
+SRC_4=${SRC_PATH}/easydb.tar
+
+DIR_1=asst1
+DIR_2=asst2
+DIR_3=asst3
+DIR_4=asst4
+
+# Files to checkout from student repository for each lab
+FILES_1="warmup/fact.c warmup/hello.c warmup/point.c warmup/sorted_points.c warmup/wc.c warmup/words.c"
+FILES_2="threads/show_ucontext.c threads/thread.c"
+FILES_3="threads/thread.c"
+FILES_4="webserver/server_thread.c"
+
+# common functions
+
+# sets global variables MARKS and TOTAL
+function get_marks() {
+    NR=$1
+    MARKS_FILE=$2
+
+    # TOTAL from above
+    TOTAL=$(eval echo \$TOTAL_$NR)
+    if [ -f "$MARKS_FILE" ]; then
+        MARKS=$(awk -F "," 'BEGIN{mark=0}{mark+=$2}END{printf "%s", mark}' $MARKS_FILE)
+        SUM=$(awk -F "," 'BEGIN{sum=0}{sum+=$3}END{printf "%s", sum}' $MARKS_FILE)
+        if [ "$SUM" -ne "$TOTAL" ]; then
+            echo "Sum: $SUM != Total: $TOTAL" 1>&2;
+        fi
+    else
+        MARKS=""
+    fi
+    if [ -z "$MARKS" ]; then
+        MARKS=0
+    fi
+}
