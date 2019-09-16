@@ -14,6 +14,7 @@
 #include "shoe.h"
 #include <cstdio>
 #include <cstring>
+#include <unistd.h> // <unistd> original
 
 static int
 usage(const char * prog) {
@@ -34,10 +35,6 @@ usage(const char * prog) {
 int
 Config::process_arguments(int argc, const char * argv[])
 {
-    /*
-     * TODO: implement this
-     */
-
     if (argc == 2 && !strcmp(argv[1], "-h")) {
         return usage(argv[0]);
     }
@@ -53,6 +50,9 @@ Config::process_arguments(int argc, const char * argv[])
 		fprintf(stderr, "Error: cannot instantiate Shoe. (bad file?)\n");
 		return usage(argv[0]);
 	}
+
+	// Argument parsing here
+	
 
 	return 0;
 }
