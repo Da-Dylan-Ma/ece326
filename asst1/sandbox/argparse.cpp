@@ -1,10 +1,6 @@
 #include <cstdio>
 #include <cstring>
-//#include <unistd.h> // <unistd> original
-
-#include <unordered_set>
 #include <iostream>
-//#include <string>
 using std::cout;
 using std::cerr;
 using std::endl;
@@ -26,7 +22,8 @@ static int usage(const char * prog) {
 	return -1;
 }
 
-int main(int argc, const char * argv[]) {
+int parser(int argc, const char * argv[]) {
+
     if (argc == 2 && !strcmp(argv[1], "-h")) {
         return usage(argv[0]);
     }
@@ -35,10 +32,12 @@ int main(int argc, const char * argv[]) {
     const char* optv[] = {"-f", "-i", "-r", "-a", "-s"};
     int optc = 5;
     char target = 0;
-    const char* fvalue = "";
-    const char* ivalue = "";
-    const char* rvalue = "";
-    const char* avalue = "";
+
+    const char* ffile = "";
+    long iseed = -1;
+    const char* rfile = "";
+    const char* afile = "";
+	long anum = -1;
     bool sflag = false;
 
     // Search exclusively for -h option
@@ -46,40 +45,76 @@ int main(int argc, const char * argv[]) {
         if (argv[i] == "-h") return usage(argv[0]);
     }
 
-    // TODO: Multiple same options
     // Search for other options
     for (int i = 0; i < argc; i++) {
         const char* opt = argv[i];
-        cout << "[STATUS] Processing: " << opt << endl;
 
         // Retrieve next argument
         // Need to rely on loop to avoid OutOfIndex access
         if (target != 0) {
-            cout << "[STATUS] Checking args" << endl;
 
             // Check if next argument is not an option
             for (int j = 0; j < optc; j++) {
                 if (strcmp(opt, optv[j]) == 0) {
-                    cerr << "./asst1: option requires an argument -- '" << target << "'" << endl;
+					if (target == 'A') {
+						cerr << "Error: must specify number of hands when playing automatically." << endl;
+					} else {
+						cerr << argv[0] << ": option requires an argument -- '" << (char)tolower(target) << "'" << endl;
+					}
                     return TERMINATE;
                 }
             }
 
             // Save argument
             switch (target) {
-                case 'f': fvalue = opt; break;
-                case 'i': ivalue = opt; break;
-                case 'r': rvalue = opt; break;
-                case 'a': avalue = opt; break;
+
+                case 'f': {
+					ffile = opt;
+					target = 0;
+					break;
+				}
+
+                case 'i': {
+					char *pEnd;
+			        iseed = strtol(opt, &pEnd, 10);
+			        if ((*pEnd)||(iseed < 0)) {
+						cout << "Error: SEED must be a non-negative integer." << endl;
+						return TERMINATE;
+					}
+					target = 0;
+					break;
+				}
+
+                case 'r': {
+					rfile = opt;
+					target = 0;
+					break;
+				}
+
+                case 'a': {
+					afile = opt;
+					target = 'A'; // Special case for "-a" since it accepts two arguments
+					break;
+				}
+
+				case 'A': {
+					char *pEnd;
+			        anum = strtol(opt, &pEnd, 10);
+			        if ((*pEnd)||(anum <= 0)) {
+						cout << "Error: NUM must be a natural number." << endl;
+						return TERMINATE;
+					}
+					target = 0;
+					break;
+				}
             }
-            target = 0;
         }
 
         // Specify all valid options
         else {
             for (int j = 0; j < optc; j++) {
                 if (strcmp(opt, optv[j]) == 0) {
-                    // Differentiate between argument-requiring options
+                    // Special case for "-s", no need for argument parsing
                     if (strcmp(opt, "-s") == 0) {
                         if (sflag) {
                             cerr << "Error: too many -s options specified." << endl;
@@ -89,20 +124,21 @@ int main(int argc, const char * argv[]) {
 
                     } else {
                         target = opt[1];
+
                         // Check if option already specified, excluding "-s"
-                        const char* tvalue;
+                        bool manyOptionFlag = false;
                         switch (target) {
-                            case 'f': tvalue = fvalue; break;
-                            case 'i': tvalue = ivalue; break;
-                            case 'r': tvalue = rvalue; break;
-                            case 'a': tvalue = avalue; break;
+                            case 'f': if (strcmp(ffile, "") != 0) manyOptionFlag = true; break;
+                            case 'r': if (strcmp(rfile, "") != 0) manyOptionFlag = true; break;
+                            case 'a': if (strcmp(afile, "") != 0) manyOptionFlag = true; break;
+                            case 'i': if (iseed != -1) manyOptionFlag = true; break;
                         }
-                        if (strcmp(tvalue, "") != 0) {
+                        if (manyOptionFlag) {
                             cerr << "Error: too many -" << target << " options specified." << endl;
                             return TERMINATE;
                         }
 
-                        cout << "[STATUS] Target: " << target << endl;
+                        //cout << "[STATUS] Target: " << target << endl;
                     }
                     break;
                 }
@@ -112,26 +148,146 @@ int main(int argc, const char * argv[]) {
 
     // Check if arguments are still needed
     if (target != 0) {
-        cerr << "./asst1: option requires an argument -- '" << target << "'" << endl;
-        return TERMINATE;
+		if (target == 'A') {
+			cerr << "Error: must specify number of hands when playing automatically." << endl;
+		} else {
+			cerr << argv[0] << ": option requires an argument -- '" << (char)tolower(target) << "'" << endl;
+		}
+		return TERMINATE;
     }
+	if ((strcmp(ffile, "") != 0)&&(iseed != -1)) {
+		cerr << "Error: cannot choose both file and random-based shoe." << endl;
+		return TERMINATE;
+	}
+	if ((strcmp(rfile, "") != 0)&&(iseed == -1)) {
+		cerr << "Error: recording is only available for random-based shoe." << endl;
+		return TERMINATE;
+	}
+	if ((sflag)&&(strcmp(afile, "") == 0)) {
+		cerr << "Error: silent mode is only available when playing automatically." << endl;
+		return TERMINATE;
+	}
+	cout << endl;
 
     // Activate function based on flags (non-empty values)
-    cout << "[STATUS] fvalue = " << fvalue << endl;
-    cout << "[STATUS] ivalue = " << ivalue << endl;
-    cout << "[STATUS] rvalue = " << rvalue << endl;
-    cout << "[STATUS] avalue = " << avalue << endl;
+    //cout << "[STATUS] ffile = " << ffile << endl;
+    //cout << "[STATUS] iseed = " << iseed << endl;
+    //cout << "[STATUS] rfile = " << rfile << endl;
+    //cout << "[STATUS] afile = " << afile << endl;
+    //cout << "[STATUS] anum = " << anum << endl;
+	return 0;
+}
 
-    // TODO: Add restrictions
-    // Check if svalue is non-negative integer
-    /*if (strcmp(svalue, "") != 0) {
-        char *pEnd;
-        long ivalue_int = strtol(svalue, &pEnd, 10);
-        if (*pEnd) {
 
-        }
 
-    }*/
 
+
+
+
+
+
+
+
+
+
+
+void tester(int argc, const char* argv[], char expected[], int testNum) {
+	cerr << "TEST #" << testNum << " ( ";
+	for (int j = 0; j < argc; j++) {
+		cerr << argv[j] << " ";
+	}
+	cerr << ")" << endl;
+	cerr << "Expect: " << expected << endl;
+	cerr << "Actual: "; parser(argc, argv); cerr << endl;
+}
+
+// Unit tests
+int main() {
+
+	int testNum = 1;
+	{
+		const char* argv[] = {"./a", "-f", "-i"};
+		int argc = sizeof(argv)/4;
+		char expected[] = "./a: option requires an argument -- 'f'";
+		tester(argc, argv, expected, testNum++);
+	}
+	{
+		const char* argv[] = {"./b", "-r"};
+		int argc = sizeof(argv)/4;
+		char expected[] = "./b: option requires an argument -- 'r'";
+		tester(argc, argv, expected, testNum++);
+	}
+	{
+		const char* argv[] = {"./a", "-f", "f"};
+		int argc = sizeof(argv)/4;
+		char expected[] = "";
+		tester(argc, argv, expected, testNum++);
+	}
+	{
+		const char* argv[] = {"./a", "-r", "r"};
+		int argc = sizeof(argv)/4;
+		char expected[] = "Error: recording is only available for random-based shoe.";
+		tester(argc, argv, expected, testNum++);
+	}
+	{
+		const char* argv[] = {"./a", "-f", "r", "-i", "9"};
+		int argc = sizeof(argv)/4;
+		char expected[] = "Error: cannot choose both file and random-based shoe.";
+		tester(argc, argv, expected, testNum++);
+	}
+	{
+		const char* argv[] = {"./a", "-s"};
+		int argc = sizeof(argv)/4;
+		char expected[] = "Error: silent mode is only available when playing automatically.";
+		tester(argc, argv, expected, testNum++);
+	}
+	{
+		const char* argv[] = {"./a", "-a", "r", "-f", "f"};
+		int argc = sizeof(argv)/4;
+		char expected[] = "Error: must specify number of hands when playing automatically.";
+		tester(argc, argv, expected, testNum++);
+	}
+	{
+		const char* argv[] = {"./a", "-a", "r", "4r", "-f", "f"};
+		int argc = sizeof(argv)/4;
+		char expected[] = "Error: NUM must be a natural number.";
+		tester(argc, argv, expected, testNum++);
+	}
+	{
+		const char* argv[] = {"./a", "-a", "r", "-4", "-f", "f"};
+		int argc = sizeof(argv)/4;
+		char expected[] = "Error: NUM must be a natural number.";
+		tester(argc, argv, expected, testNum++);
+	}
+	{
+		const char* argv[] = {"./a", "-i", "-1"};
+		int argc = sizeof(argv)/4;
+		char expected[] = "Error: SEED must be a non-negative integer.";
+		tester(argc, argv, expected, testNum++);
+	}
+	{
+		const char* argv[] = {"./a", "-i", "1", "-i", "9"};
+		int argc = sizeof(argv)/4;
+		char expected[] = "Error: too many -i options specified.";
+		tester(argc, argv, expected, testNum++);
+	}
+	{
+		const char* argv[] = {"./a", "-a", "f", "9", "-s", "-s"};
+		int argc = sizeof(argv)/4;
+		char expected[] = "Error: too many -s options specified.";
+		tester(argc, argv, expected, testNum++);
+	}
+	{
+		const char* argv[] = {"./a", "-i", "2", "-a", "f", "8", "-s", "-r", "f"};
+		int argc = sizeof(argv)/4;
+		char expected[] = "";
+		tester(argc, argv, expected, testNum++);
+	}
+	{
+		const char* argv[] = {"./a", "-i", "2", "-a", "f", "8", "-s", "-r", "f", "-h"};
+		int argc = sizeof(argv)/4;
+		char expected[] = "(help prompt)";
+		tester(argc, argv, expected, testNum++);
+	}
 	return 0;
 }
