@@ -22,6 +22,8 @@ Both `main.cpp` and `shoe.h` / `shoe.cpp` do not need to be modified.
 5. Windows Subsystem for Linus setup: `sudo apt install build-essential` to install other build essential tools including `make`
 6. Why do some classes possess the `factory` method? When is it called, or is it a special method handled differently by C++? Note that it is defined in the header file as a static method.
     + Answer: Called in the Config class when processing the arguments.
+7. `Player::play(Hand*, Hand*)` is called to allow user to perform Blackjack actions. Suppose hit is called, but the `Shoe` object is not exposed to the `Player` to draw cards. A possible solution is to process everything in `Blackjack` which has access to `Shoe`, but how should `Player` pass the action to be taken to `Blackjack`, when the header of `Player` is fixed?
+    + Can additional attributes and methods be assigned to `Player` in the implementation, despite not defined in the header?
 
 ---
 
@@ -32,6 +34,7 @@ Both `main.cpp` and `shoe.h` / `shoe.cpp` do not need to be modified.
     + Declares `Player`, `Shoe`, `Config`, `Hand`, `Blackjack` classes
     + ***TODO***: Definition of const `Blackjack::dealer_hand`
     + ***TODO***: Declare other methods of `Blackjack` (if required)
+    + ***TODO***: Definition of Hand class
 2. `config.h`:
     + Declares `Player`, `Shoe` classes and `Config` struct
 3. `player.h`:
@@ -97,10 +100,52 @@ bool over() const;
 
 ### `Hand` class
 
-The class is required to represent a hand in blackjack. Should probably be implemented separately in `hand.cpp` as a principle of OOP. What attributes should it possess? Bet? Value?
+The class is required to represent a hand in blackjack, to be defined in `easybj.h` and implemented in `easybj.cpp`.
+
+```cpp
+vector<char> cards; // list of cards in hand
+double bet; // default 1.0, bet involved with hand
+bool action_taken; // default false
+
+bool is_blackjack()
+// TODO: Checks if hand is blackjack
+
+int get_num_cards()
+// TODO: Get number of cards in hand, for double and split, i.e. cards.length
+
+int get_hand_value()
+// TODO: Get highest possible value of hand (under 21 if possible)
+
+int get_hand_value_min()
+// TODO: Get lowest possible value of hand, i.e. 'A' == 1
+
+// Check possible actions, for printing and user input
+bool can_double()
+// TODO: Check if can double, i.e. two card hand
+
+bool can_surrender()
+// TODO: Check if action taken
+
+bool can_split()
+// TODO: Check if can split, i.e. same value in two card hand
+
+// Update hand, stand and surrender does nothing to Hand itself
+void add_card(char card)
+// TODO: Add card to hand
+
+void call_hit()
+// TODO: Perform hit procedure
+
+void call_double()
+// TODO: Perform doubling procedure
+
+Hand* call_split()
+// TODO: Returns new Hand with cards split
+// Since Shoe not exposed to Hand, card assignment should be done in Player
+```
 
 ### `Player` class
-What should this class additionally do?
+How is the class supposed to pass the message to Config/Blackjack to draw a card from the shoe?
 
 ```cpp
 double balance; // player profit
@@ -122,10 +167,11 @@ void update_balance(double val)
 // Update balance and number of hands fields
 
 void play(Hand * hand, const Hand * dealer)
-// TODO: Supposed to play player hand against the dealer's
+// TODO: Supposed to play player hand against the dealers
+// Performs player subroutine, and manually assigning of cards to hands
 
 bool again() const
-// TODO: Returns boolean to determine if next game should be played, for manual input
+// TODO: Returns boolean to determine if next game should be played, for manual input at the end of single game
 ```
 
 ### `Blackjack` class
@@ -136,24 +182,33 @@ Plays the blackjack game. Handles:
 ```cpp
 Player * player; // pointer to created Player stored in Config
 Shoe * shoe; // pointer to created Shoe stored in Config
+vector<Hand> hands; // Keep track of hands available to be played
 
 Blackjack(Player * p, Shoe * s): player(p), shoe(s)
 // TODO: Constructor for a single Blackjack game
+// Returns the first hand for the player, or nullptr if game ends immediately with blackjack
 
 ~Blackjack()
 // TODO: Dependent on implementation of constructor
+
+const Hand * dealer_hand() const { return nullptr; }
+// TODO: Return hand for dealer, or nullptr if game ended
 
 Hand * start()
 // TODO: Returns the initial player hand, and start the game (?)
 
 Hand * next()
-// TODO: Updates player hand
+// TODO: Returns the next hand the player can play
+// Returns nullptr once the player subroutine ends
+// This function may only be called after start(), and returns the next hand that the player can play. The return value may be nullptr if no more hands are left to be played. Note that if a hand has 21 points, it stands automatically.
 
 std::ostream & operator<<(std::ostream & ostr, const Blackjack & bj)
 // TODO: For string representation printing, not critical
 
 void finish()
 // TODO: Calculate profit earned by player and update `player->balance`
+// This function may only be called after no more hands are left to be played. Its purpose is to allow the dealer to take action(s) and then updates the player's balance based on the outcome of the game. If the player has no live hands (i.e. all his/her hands busted or surrendered), then the dealer will not draw any cards. In all circumstances, you MUST call Player::update_balance exactly once during this function otherwise the number of hands played will be off.
+
 ```
 
 ### `Config` class
@@ -197,6 +252,7 @@ int process_arguments(int argc, const char * argv[])
     + Hit (H)
         1. Add card to hand
         2. If 'A' == 1 and exceed 21, player loses bet [EXIT]
+        3. If value == 21, GOTO PLAYER STAND
         3. GOTO PLAYER SUBROUTINE
     + Double (D)
         1. Increase bet to 2x
