@@ -24,6 +24,7 @@ Both `main.cpp` and `shoe.h` / `shoe.cpp` do not need to be modified.
     + Answer: Called in the Config class when processing the arguments.
 7. `Player::play(Hand*, Hand*)` is called to allow user to perform Blackjack actions. Suppose hit is called, but the `Shoe` object is not exposed to the `Player` to draw cards. A possible solution is to process everything in `Blackjack` which has access to `Shoe`, but how should `Player` pass the action to be taken to `Blackjack`, when the header of `Player` is fixed?
     + Can additional attributes and methods be assigned to `Player` in the implementation, despite not defined in the header?
+    + Actually, the reference to Shoe can be passed to `Hand` class, since the definition is user-defined. This means the `Hand` class is excessively powerful though...
 
 ---
 
@@ -98,50 +99,134 @@ bool over() const;
 // Checks if cut depth exceeded
 ```
 
+### Utility functions
+To be defined in `easybj.cpp`.
+
+```cpp
+// Converts card to value, 'A' == 1
+int card_value(char card) {
+    switch (card) {
+        case 'A':
+            return 1;
+        case 'T':
+        case 'J':
+        case 'Q':
+        case 'K':
+            return 10;
+        default:
+            return stoi(card, nullptr, 10);
+    }
+    return -1; // error
+}
+```
+
 ### `Hand` class
 
 The class is required to represent a hand in blackjack, to be defined in `easybj.h` and implemented in `easybj.cpp`.
 
 ```cpp
+Player* player; // pointer to created Player stored in Config
+Shoe* shoe; // pointer to created Shoe stored in Config
 vector<char> cards; // list of cards in hand
 double bet; // default 1.0, bet involved with hand
 bool action_taken; // default false
+bool action_allowed; // default true
 
-bool is_blackjack()
-// TODO: Checks if hand is blackjack
+// initialize
+Hand(Player* p, Shoe* s, bool actionable): player(p), shoe(s), bet(1.0), action_taken(false), action_allowed(actionable) {}
 
-int get_num_cards()
-// TODO: Get number of cards in hand, for double and split, i.e. cards.length
 
-int get_hand_value()
-// TODO: Get highest possible value of hand (under 21 if possible)
+/*------ QUERIES ------*/
 
-int get_hand_value_min()
-// TODO: Get lowest possible value of hand, i.e. 'A' == 1
+// Checks if hand is blackjack
+bool is_blackjack() const {
+    if (this.get_num_cards() != 2) return false;
+    return get_hand_value() == 21;
+}
+
+// Checks if hand has an ace, easier to check
+bool has_ace() const {
+    for (char card: cards) {
+        if (card == 'A') return true;
+    }
+    return false;
+}
 
 // Check possible actions, for printing and user input
-bool can_double()
-// TODO: Check if can double, i.e. two card hand
+bool can_play() const {
+    return get_hand_value() < 21;
+}
 
-bool can_surrender()
-// TODO: Check if action taken
+// Check if can double, i.e. two card hand
+bool can_double() const {
+    return get_num_cards() == 2;
+}
 
-bool can_split()
-// TODO: Check if can split, i.e. same value in two card hand
+// Check if action taken
+bool can_surrender() const {
+    return !action_taken;
+}
+
+// Check if can split, i.e. same value in two card hand
+bool can_split() const {
+    if (this.get_num_cards() != 2) return false;
+    return card_value(cards[0]) == card_value(cards[1]);
+}
+
+
+/*------ GETTERS ------*/
+
+// Get number of cards in hand, for double and split, i.e. cards.length
+int get_num_cards() const { return cards.size(); }
+
+// Get highest possible value of hand (under 21 if possible)
+int get_hand_value() const {
+    int value = this.get_hand_value_min();
+    if ((value <= 11) && (this.has_ace())) {
+        return value + 10;
+    }
+    return value;
+}
+
+// Get lowest possible value of hand, i.e. 'A' == 1
+int get_hand_value_min() const {
+    int value = 0;
+    for (char card: cards) {
+        value += card_value(card);
+    }
+    return value;
+}
+
+
+/*------ SETTERS ------*/
 
 // Update hand, stand and surrender does nothing to Hand itself
-void add_card(char card)
-// TODO: Add card to hand
+// Add card to hand, using Shoe reference
+void add_card() {
+    cards.push_back(shoe.pop());
+    this.action_taken = true;
+}
 
-void call_hit()
-// TODO: Perform hit procedure
+// Perform hit procedure, returns true if not busted
+void call_hit() {
+    add_card();
+    action_allowed = get_hand_value_min() > 21;
+}
 
-void call_double()
-// TODO: Perform doubling procedure
+// Perform doubling procedure
+void call_double() {
+    bet *= 2;
+    call_hit();
+}
 
-Hand* call_split()
 // TODO: Returns new Hand with cards split
-// Since Shoe not exposed to Hand, card assignment should be done in Player
+Hand* call_split() {
+    action_allowed = cards[0] != 'A'
+    Hand* other = new Hand(p, s, action_allowed);
+    this.add_card(); // which order?
+    other.add_card();
+    return other;
+}
 ```
 
 ### `Player` class
