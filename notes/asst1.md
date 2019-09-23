@@ -122,7 +122,7 @@ int card_value(char card) {
 
 ### `Hand` class
 
-The class is required to represent a hand in blackjack, to be defined in `easybj.h` and implemented in `easybj.cpp`.
+The class is required to represent a hand in blackjack, to be defined in `easybj.h` and implemented in `easybj.cpp`. Since player cannot track hands, `Hand` should store split information and `Blackjack` will check. This is becoming very very non-OOP though...
 
 ```cpp
 Player* player; // pointer to created Player stored in Config
@@ -130,10 +130,20 @@ Shoe* shoe; // pointer to created Shoe stored in Config
 vector<char> cards; // list of cards in hand
 double bet; // default 1.0, bet involved with hand
 bool action_taken; // default false
-bool action_allowed; // default true
+bool action_allowed; // default true, false when stand
+char split_card; // if not 0, the card to be split into new hand
+bool can_player_split; // false if player has too many cards, disable_split()
 
 // initialize
-Hand(Player* p, Shoe* s, bool actionable): player(p), shoe(s), bet(1.0), action_taken(false), action_allowed(actionable) {}
+Hand(Player* p, Shoe* s):
+    player(p), shoe(s), bet(1.0),
+    action_taken(false), action_allowed(true),
+    split_card(0), player_can_split(true) {}
+
+Hand(Player* p, Shoe* s, char card_from_split):
+    player(p), shoe(s), bet(1.0),
+    action_taken(true), action_allowed(card_from_split == 'A'),
+    split_card(0), player_can_split(true) {}
 
 
 /*------ QUERIES ------*/
@@ -142,6 +152,10 @@ Hand(Player* p, Shoe* s, bool actionable): player(p), shoe(s), bet(1.0), action_
 bool is_blackjack() const {
     if (this.get_num_cards() != 2) return false;
     return get_hand_value() == 21;
+}
+
+bool is_bust() const {
+    return get_hand_value_min() > 21;
 }
 
 // Checks if hand has an ace, easier to check
@@ -169,12 +183,40 @@ bool can_surrender() const {
 
 // Check if can split, i.e. same value in two card hand
 bool can_split() const {
+    if (!this.can_player_split) return false;
     if (this.get_num_cards() != 2) return false;
     return card_value(cards[0]) == card_value(cards[1]);
 }
 
+std::ostream& operator<<(std::ostream& ostr, const Hand& hand) {
+    // Print hand cards
+    for (char card: hand.cards) ostr << card << " ";
+
+    // Print value
+    int hand_value = hand.get_hand_value();
+    int hand_value_min = hand.get_hand_value_min();
+    if (hand_value == 21) {
+        if (hand_value_min == 21) {
+            ostr << "(soft 21)";
+        } else {
+            ostr << "(hard 21)";
+        }
+    } else if (hand_value > 21) {
+        ostr << "(bust)";
+    } else {
+        ostr << "(" << hand_value << ")";
+    }
+
+    // Print double
+    if (hand.bet == 1.0*2) ostr << " DOUBLE";
+    return ostr;
+}
+
 
 /*------ GETTERS ------*/
+
+// Returns card if hand needs to be split, otherwise 0
+char get_split_card() const { return split_card; }
 
 // Get number of cards in hand, for double and split, i.e. cards.length
 int get_num_cards() const { return cards.size(); }
@@ -202,15 +244,26 @@ int get_hand_value_min() const {
 
 // Update hand, stand and surrender does nothing to Hand itself
 // Add card to hand, using Shoe reference
+// TODO: What about the case when shoe runs out of cards to supply?
 void add_card() {
     cards.push_back(shoe.pop());
-    this.action_taken = true;
+    action_taken = true;
 }
 
-// Perform hit procedure, returns true if not busted
+// Disable splitting, called in Blackjack
+void disable_split() {
+    can_player_split = false;
+}
+
+// Stand
+void call_stand() {
+    action_allowed = false;
+}
+
+// Perform hit procedure
 void call_hit() {
     add_card();
-    action_allowed = get_hand_value_min() > 21;
+    action_allowed = get_hand_value_min() >= 21; // automatic stand at 21
 }
 
 // Perform doubling procedure
@@ -219,45 +272,89 @@ void call_double() {
     call_hit();
 }
 
-// TODO: Returns new Hand with cards split
-Hand* call_split() {
-    action_allowed = cards[0] != 'A'
-    Hand* other = new Hand(p, s, action_allowed);
-    this.add_card(); // which order?
-    other.add_card();
-    return other;
+// Returns new Hand with cards split
+void call_split() {
+    split_card = cards[0];
+    // Rest of action performed in Blackjack
+    // action_allowed = cards[0] != 'A'
+    // Hand* other = new Hand(p, s, action_allowed);
+    // this.add_card(); // which order?
+    // other.add_card();
+    // return other;
+}
+
+// Surrender
+void call_surrender() {
+    bet *= 0.5;
+    call_stand();
 }
 ```
 
 ### `Player` class
-How is the class supposed to pass the message to Config/Blackjack to draw a card from the shoe?
 
 ```cpp
 double balance; // player profit
 int nr_hands; // total number of hands played
 
-Player * factory(const Config * config)
-// TODO: Follow Shoe::factory
+// Follow Shoe::factory
+// TODO: Code in automated playing, currently only manual mode supported.
+Player* factory(const Config * config):
+    balance(0.0), nr_hands(0) {}
 
-~Player()
-// TODO: Dependent on definition of constructor
+// Dependent on definition of constructor
+~Player() {}
 
-double get_balance() const
 // Returns player balance from all the games
+double get_balance() const
 
-int get_hands_played() const
 // Returns number of hands played
+int get_hands_played() const
 
-void update_balance(double val)
 // Update balance and number of hands fields
+void update_balance(double val)
 
-void play(Hand * hand, const Hand * dealer)
-// TODO: Supposed to play player hand against the dealers
+// Supposed to play player hand against the dealers
 // Performs player subroutine, and manually assigning of cards to hands
+// Assumption: Hand is playable
+void play(Hand* hand, const Hand* dealer) {
 
-bool again() const
-// TODO: Returns boolean to determine if next game should be played, for manual input at the end of single game
+    // Save possible actions
+    bool can_double = hand.can_double();
+    bool can_surrender = hand.can_surrender();
+    bool can_split = hand.can_split();
+
+    // REPL for manual user input
+    while (true) {
+        // Print command
+        cout << "Stand (S) Hit (H)";
+        if (can_double) cout << " Double (D)";
+        if (can_surrender) cout << " Surrender (R)";
+        if (can_split) cout << " Split (P)";
+        cout << ": ";
+
+        // Get user input
+        string cmd; getline(cin, cmd);
+        if (cmd.size() == 0) cmd = "a";
+        switch (tolower(cmd[0])) {
+            case 'h': return hand.call_hit();
+            case 's': return hand.call_stand();
+            case 'd': if (can_double) return hand.call_double();
+            case 'r': if (can_surrender) return hand.call_surrender();
+            case 'p': if (can_split) return hand.call_split();
+            default: break;
+        }
+    }
+}
+
+// Returns boolean to determine if next game should be played, for manual input at the end of single game
+bool again() const {
+    cout << "Press Any Key to Continue, (Q to Quit): ";
+    string cmd; getline(cin, cmd);
+    if (cmd.size() != 0 && tolower(cmd[0]) == 'q') return false;
+    return true;
+}
 ```
+
 
 ### `Blackjack` class
 Plays the blackjack game. Handles:
@@ -265,34 +362,173 @@ Plays the blackjack game. Handles:
 + Keeps track of player and dealer hands
 
 ```cpp
-Player * player; // pointer to created Player stored in Config
-Shoe * shoe; // pointer to created Shoe stored in Config
-vector<Hand> hands; // Keep track of hands available to be played
+Player* player; // pointer to created Player stored in Config
+Shoe* shoe; // pointer to created Shoe stored in Config
+vector<Hand*> hands; // Keep track of hands available to be played
+const Hand* dealer_hand_ptr; // Save dealer's hand
+bool blackjack_found; // Quick terminate
+double profit; // Total
 
-Blackjack(Player * p, Shoe * s): player(p), shoe(s)
-// TODO: Constructor for a single Blackjack game
-// Returns the first hand for the player, or nullptr if game ends immediately with blackjack
+// Constructor for a single Blackjack game
+Blackjack(Player* p, Shoe* s):
+    player(p), shoe(s), blackjack_found(false), profit(0.0) {
 
-~Blackjack()
-// TODO: Dependent on implementation of constructor
+    dealer_hand_ptr = new Hand(p, s);
+    dealer_hand_ptr.add_card();
+    dealer_hand_ptr.add_card();
+    if (dealer_hand_ptr->is_blackjack()) blackjack_found = true;
 
-const Hand * dealer_hand() const { return nullptr; }
-// TODO: Return hand for dealer, or nullptr if game ended
+    Hand* player_hand = new Hand(p, s);
+    player_hand.add_card();
+    player_hand.add_card();
+    if (player_hand->is_blackjack()) blackjack_found = true;
 
-Hand * start()
-// TODO: Returns the initial player hand, and start the game (?)
+    hands.push_back(player_hand);
+}
 
-Hand * next()
-// TODO: Returns the next hand the player can play
+// Dependent on implementation of constructor
+~Blackjack() {
+    delete dealer_hand_ptr;
+    for (Hand* hand: hands) delete hand;
+}
+
+// Return hand for dealer, or nullptr if game ended
+const Hand* dealer_hand() const {
+    if (blackjack_found) return nullptr;
+    return dealer_hand_ptr;
+}
+
+// Returns the initial player hand, and start the game (?)
+Hand* start() {
+    if (blackjack_found) return nullptr;
+    return hands[0];
+}
+
+// Returns the next hand the player can play
 // Returns nullptr once the player subroutine ends
 // This function may only be called after start(), and returns the next hand that the player can play. The return value may be nullptr if no more hands are left to be played. Note that if a hand has 21 points, it stands automatically.
+Hand* next() {
 
-std::ostream & operator<<(std::ostream & ostr, const Blackjack & bj)
-// TODO: For string representation printing, not critical
+    // Process hand splitting first
+    for (int i = 0; i < hands.size(); i++) {
+        char split_card = hands[i].get_split_card();
+        if (split_card != 0) {
+            Hand* new_hand_1 = new Hand(p, s, split_card);
+            Hand* new_hand_2 = new Hand(p, s, split_card);
+            new_hand_1.add_card();
+            new_hand_2.add_card();
 
-void finish()
-// TODO: Calculate profit earned by player and update `player->balance`
+            hands.erase(hands.begin()+i); // insert at same position
+            hands.insert(hands.begin()+i, new_hand_2);
+            hands.insert(hands.begin()+i, new_hand_1);
+        }
+    }
+
+    // Disable splitting if exceeded
+    if (hands.size() == 4)
+        for (Hand* hand: hands) hand.disable_split();
+    }
+
+    for (Hand* hand: hands) {
+        if (hand.can_play()) return hand;
+    }
+    return nullptr;
+}
+
+// For string representation printing, not critical
+// Do we need to print (blackjack) for blackjack case?
+std::ostream& operator<<(std::ostream& ostr, const Blackjack& bj) {
+    // Dealer results
+    ostr << "Dealer: " << &bj.dealer_hand_ptr << endl;
+
+    // Player results
+    int hand_num = 1;
+    for (Hand* hand: bj.hands) {
+        ostr << "Hand " << hand_num++ <<": " << &hand << endl;
+    }
+    double result = bj.profit;
+    ostr << "Result: " << (result < 0.0 ? "-$" : "$");
+    ostr << std::fixed << std::setprecision(2) << result << endl;
+
+    // Balance
+    double bal = player->get_balance();
+    ostr << "Current Balance: " << (bal < 0.0 ? "-$" : "$");
+    ostr << std::fixed << std::setprecision(2) << bal << endl;
+}
+
+// Calculate profit earned by player and update `player->balance`
 // This function may only be called after no more hands are left to be played. Its purpose is to allow the dealer to take action(s) and then updates the player's balance based on the outcome of the game. If the player has no live hands (i.e. all his/her hands busted or surrendered), then the dealer will not draw any cards. In all circumstances, you MUST call Player::update_balance exactly once during this function otherwise the number of hands played will be off.
+void finish() {
+
+    // Blackjack payoff
+    if (blackjack_found) {
+        Hand* player_hand = hands[0];
+        if (player_hand->is_blackjack()) {
+            player->update_balance(hand->bet * 1.5);
+            profit += hand->bet * 1.5;
+        } else if (dealer_hand_ptr->is_blackjack()) {
+            player->update_balance(hand->bet * -1);
+            profit += hand->bet * -1;
+        } else {
+            player->update_balance(0.0);
+        }
+        return;
+    }
+
+    // No blackjack payoff
+    // Check if player is all bust, dealer will not draw cards in this case
+    bool player_bust = true;
+    for (Hand* hand: hands) {
+        if (!hand->is_bust()) {
+            player_bust = false;
+            break;
+        }
+    }
+
+    // Dealer actions
+    if (player_bust) {
+        while (true) {
+            int dealer_value = dealer_hand_ptr->get_hand_value_min();
+            if (dealer_value == 7 && dealer_hand_ptr->has_ace()) {
+                dealer_hand_ptr->call_hit();
+                continue;
+            }
+            dealer_value = dealer_hand_ptr->get_hand_value();
+            if (dealer_value < 17) {
+                dealer_hand_ptr->call_hit();
+            } else {
+                dealer_hand_ptr->call_stand();
+                break;
+            }
+        }
+    }
+
+    // Calculate profit
+    if (dealer_hand_ptr->is_bust()) {
+        for (Hand* hand: hands) {
+            if (hand->is_bust()) {
+                player->update_balance(0.0);
+            } else {
+                player->update_balance(hand->bet);
+                profit += hand->bet;
+            }
+        }
+    } else {
+        int dealer_value = dealer_hand_ptr->get_hand_value();
+        for (Hand* hand: hands) {
+            hand_value = hand->get_hand_value();
+            if (hand_value < dealer_value || hand->is_bust()) {
+                player->update_balance(hand->bet * -1);
+                profit += hand->bet * -1;
+            } else if (hand_value > dealer_value) {
+                player->update_balance(hand->bet);
+                profit += hand->bet;
+            } else {
+                player->update_balance(0.0);
+            }
+        }
+    }
+}
 
 ```
 
@@ -309,8 +545,9 @@ long num_hands; // default 0, number of hands played in auto
 long random_seed; // default -1, seed for InfiniteShoe
 bool silent; // default false, silent mode to stop printing
 
+// Accepts command line args, modify relevant fields
+// Already detailed in config.cpp
 int process_arguments(int argc, const char * argv[])
-// TODO: Accepts command line args, modify relevant fields
 ```
 
 ---
