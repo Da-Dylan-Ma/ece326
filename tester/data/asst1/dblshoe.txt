@@ -1,0 +1,22 @@
+# dealer hand
+K6
+
+# player
+56Q
+
+# dealer third card
+3
+
+# dealer hand
+29
+
+# player surrenders
+5J
+
+# dealer hand
+77
+
+# player double and bust
+66Q
+
+2345678923456789

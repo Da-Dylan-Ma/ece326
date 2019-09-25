@@ -56,14 +56,13 @@ class Core:
                     if self.program.exitstatus is None:
                             print 'ERROR: program was killed with signal = ' + \
                                     str(self.program.signalstatus)
-                            return False
                     elif exitcode is not None and \
                          self.program.exitstatus != exitcode:
                             print 'ERROR: program exited with status = ' + \
                                     str(self.program.exitstatus)
-                            return False
                     else:
-                            self.add_mark(mark)
+                            if mark > 0:
+                                self.add_mark(mark)
                             return True
                 except pexpect.TIMEOUT, e:
                         print 'ERROR: TIMEOUT: program did not end'
@@ -72,6 +71,8 @@ class Core:
                 except Exception, e:
                         print 'ERROR: unexpected problem', sys.exc_info()[0]
                         print '\nPLEASE REPORT THIS TO THE INSTRUCTOR OR A TA\n'
+                if mark < 0:
+                    self.add_mark(mark)
                 return False
         
         def __init__(self, message, total):
@@ -102,7 +103,9 @@ class Core:
         def __del__(self):
                 if hasattr(self, 'program'):
                         self.program.logfile.close()
-                if (self.mark > self.total):
+                if self.mark < 0:
+                    self.mark = 0
+                if self.mark > self.total:
                         print 'mark = ' + str(self.mark) + ' is greater than ' \
                                 'total = ' + str(self.total)
                         print '\nPLEASE REPORT THIS TO THE INSTRUCTOR OR A TA\n'
@@ -117,14 +120,11 @@ class Core:
                 else:
                         print 'FAIL'
 
-        def send_command(self, cmd):
+        def send_command(self, cmd=''):
                 if self.verbose > 0:
                         print 'SENDING: ' + cmd
-                # send the command character by character to slow it down
-                # cmd_char = list(cmd)
-                # for i in cmd_char:
-                #        self.program.send(i)
-                self.program.send(cmd)
+                if len(cmd) > 0:
+                    self.program.send(cmd)
                 self.program.send("\n")
 
         def look_internal(self, func, result, mark, report=1):

@@ -1,0 +1,10 @@
+# dealer wins 
+KKA2345Q
+
+# player wins, dealer bust
+A657988
+
+# dealer wins by one
+784976
+
+2345678923456789

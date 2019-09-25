@@ -1,0 +1,22 @@
+# dealer hand
+4K
+
+# player split to four hands
+88888888
+
+# stand, double, hit, hit, hit, stand
+2AJA
+
+# dealer miracle
+5
+
+# check aa split
+AAAA567
+
+# aa split with twenty one
+K7AAJ9
+
+# bust on both hands
+T37768QJ
+
+2345678923456789

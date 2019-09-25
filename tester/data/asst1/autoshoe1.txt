@@ -1,0 +1,25 @@
+# dealer hand
+34
+
+# player split to four hands
+77479K7A79
+
+# dealer card
+Q
+
+# next hand dealer
+T3
+
+# player use alternate action
+23A3 6
+
+# next hand player surrender
+Q866
+
+# next hand stand against dealer eight
+44QKA
+
+# always split aa
+KKAAQ3
+
+2345678923456789

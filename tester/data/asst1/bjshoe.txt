@@ -1,0 +1,10 @@
+# dealer wins 
+AKJ8
+
+# player wins
+35TA
+
+# tie
+JAAQ
+
+2345678923456789

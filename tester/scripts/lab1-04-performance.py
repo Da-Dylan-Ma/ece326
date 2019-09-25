@@ -11,25 +11,25 @@ TEST_CASES = [
     # https://wizardofodds.com/games/blackjack/appendix/16/
     #
     (0, "wizard.txt", 2000000, 'Hands Played: 2000000', 
-        'Final Balance: \+\$201456\.50', 'Player Advantage: 10\.07%',
+        'Final Balance: \+\$200494\.50', 'Player Advantage: 10\.02%',
     ),
     
     # no bust strategy (only on hard 12-19, surrender if possible)
     #
     (1, "nobust.txt", 2000000, 'Hands Played: 2000000', 
-        'Final Balance: \+\$177877\.00', 'Player Advantage: 8\.894%',
+        'Final Balance: \+\$177492\.50', 'Player Advantage: 8\.875%',
     ),
 
     # mimic the dealer (surrender if losing with hand above h17/s18)
     #
     (2, "mimic.txt", 2000000, 'Hands Played: 2000000', 
-        'Final Balance: \+\$70539\.50', 'Player Advantage: 3\.527%',
+        'Final Balance: \+\$63428\.00', 'Player Advantage: 3\.171%',
     ),
     
     # assume 10 comes next (surrender if will lose under the assumption)
     #
     (3, "only10.txt", 2000000, 'Hands Played: 2000000', 
-        'Final Balance: \+\$160338\.50', 'Player Advantage: 8\.017%',
+        'Final Balance: \+\$159741\.50', 'Player Advantage: 7\.987%',
     ),  
 ]
 
