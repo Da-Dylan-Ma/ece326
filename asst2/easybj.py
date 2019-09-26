@@ -24,7 +24,9 @@ NON_SPLIT_CODE = HARD_CODE + SOFT_CODE # cannot split
 STAND_CODE = HARD_CODE + ['21'] + SOFT_CODE # can stand
 PLAYER_CODE = HARD_CODE + SPLIT_CODE + SOFT_CODE[1:] # strategy table y-labels
 DEALER_CODE = HARD_CODE + SOFT_CODE[:6] # strategy table x-labels
-DEALER_STAND_CODE = HARD_CODE[-4:] + ["21", "BJ", BUST_CODE]
+
+PLAYER_STAND_CODE = ["21", BUST_CODE]
+DEALER_STAND_CODE = HARD_CODE[-4:] + PLAYER_STAND_CODE
 
 # All possible starting hands (hard 4 is always 22, and hard 20 is always TT)
 INITIAL_CODE = HARD_CODE[1:-1] + SPLIT_CODE + SOFT_CODE[1:] + ['BJ']
@@ -196,9 +198,12 @@ class Calculator:
     @profile
     def create_dealer_table(self):
         """ Populate dealer table """
-        # Base cases
+        # Add base cases for recursion termination
         for code in DEALER_STAND_CODE: self.dealprob[code][code2score(code)] = 1.0
         for code in DEALER_CODE: self.get_dealer_prob(code)
+
+        # Remove bust code
+        del self.dealprob[BUST_CODE]
 
     def get_dealer_prob(self, code):
         """ Returns probabilities of possible dealer outcomes """
@@ -207,7 +212,7 @@ class Calculator:
 
         curr_prob = table[code]
         for card in DISTINCT: # all possible draws
-            cards = cards2code(code2cards(code)+card, True)
+            cards = cards2code(code2cards(code)+card, dealer=True)
             next_prob = self.get_dealer_prob(cards) # assume probs exists
             for score, prob in next_prob.items():
                 curr_prob[score] += probability(card)*next_prob[score]
@@ -221,6 +226,28 @@ class Calculator:
             assert(isclose(sum(probs.values())))
 
 
+    ##########################
+    ##  STAND PAYOFF TABLE  ##
+    ##########################
+
+    @profile
+    def create_stand_table(self):
+        """ Populate stand EV table """
+        # Assuming dealer will ALWAYS hit when not at least hard 17
+        # Uses dealer table probabilities
+        table = self.stand_ev
+        for code in STAND_CODE:
+            for dealer_code in DEALER_CODE:
+                player_score = code2score(code)
+
+                payoff = 0.0
+                for dealer_score, prob in self.dealprob[dealer_code].items():
+                    if dealer_score == BUST or dealer_score < player_score:
+                        payoff += prob
+                    elif dealer_score > player_score:
+                        payoff -= prob
+                table[code, dealer_code] = payoff
+
 
 def calculate():
     """ Returns a dictionary containing all calculated ev tables and
@@ -232,6 +259,7 @@ def calculate():
     calc.verify_initial_table()
     calc.create_dealer_table()
     calc.verify_dealer_table()
+    calc.create_stand_table()
 
     return {
         'initial' : calc.initprob,
@@ -247,4 +275,12 @@ def calculate():
 
 if __name__ == "__main__":
     result = calculate()
-    dealer_table = result["dealer"]
+    initial = result["initial"]
+    d = result["dealer"]
+    s = result["stand"]
+    h = result["hit"]
+    db = result["double"]
+    k = result["split"]
+    o = result["optimal"]
+    strategy = result["strategy"]
+    a = result["advantage"]

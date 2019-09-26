@@ -5,12 +5,17 @@
 1. Modify `table.py` to complete implementation. (done)
 2. Complete `Hand.code()` to return the hand representation. (done)
 3. Generate dealer/player tables:
-    + Calculate dealer table.
-    + Calculate player stand table.
+    + Calculate dealer table. (done)
+    + Calculate player stand table. (done)
     + Calculate player hit/double table.
     + Calculate player split table.
 4. Generate strategy table based on optimal table calculations.
 5. Calculate theoretical player advantage.
+
+### Notes
+
++ Will the dealer hit in `H15-H16`, even though it is guaranteed a win?
++ Why is `H20-H19` not have a stand payoff of +1, since we know the behaviour of the dealer, i.e. will not hit? Is this strategy to calculate until 21/bust base cases truly the optimal strategy?
 
 ---
 
