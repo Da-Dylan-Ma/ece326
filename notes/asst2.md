@@ -3,7 +3,7 @@
 ## Assignment requirements
 
 1. Modify `table.py` to complete implementation. (done)
-2. Complete `Hand.code()` to return the hand representation.
+2. Complete `Hand.code()` to return the hand representation. (done)
 3. Generate dealer/player tables:
     + Calculate dealer table.
     + Calculate player stand table.
@@ -131,6 +131,12 @@ Again, we ignore all the payoffs and only assume 21 is the target hand we want.
 
 ---
 
+## Implementation
+
+
+
+---
+
 ## Program overview
 
 ### main.py
@@ -140,4 +146,34 @@ Calls `easybj.calculate()`. As simple as that. The rest of the heavy-lifting is 
 Defines special `Table` class for exception handling when getting and setting data into a database. Underlying data structure has been implemented as a dictionary of dictionaries.
 
 ### easybj.py
-To be populated.
+```python
+# Hand codes
+HARD_CODE = ['4', ..., '20'] # hard hands
+SOFT_CODE = ['AA', 'A2', ..., 'A9'] # soft hands
+SPLIT_CODE = ['22', ..., '99', 'TT', 'AA'] # hands that can be split
+NON_SPLIT_CODE # hands that cannot be split
+STAND_CODE # all codes that allow standing
+PLAYER_CODE # all possible player codes
+DEALER_CODE # all possible dealer codes
+INITIAL_CODE # all possible starting hands
+
+# Card and hand values
+BUST # bust hand value
+DISTINCT # distinct card values
+NUM_FACES # number of cards with 10 points
+NUM_RANKS # numbers of ranks in a French deck
+
+# Functions
+isclose(a, b) # returns True if floating a == floating b
+probability(card) # returns probability of getting a card
+calculate() # returns dictionary of payoff tables and strategy table
+
+Hand.__init__(self, x, y, dealer=False)
+Hand.probability(self) # returns probability of getting Hand
+Hand.code(self, nosplit=False) # returns the code representing the hand
+
+Calculator.__init__(self) # stores results
+Calculator.make_initial_cell(self, player, dealer) # populate initial probability table
+Calculator.make_initial_table(self) # construct initial probability table
+Calculator.verify_initial_table(self) # verify sum is 1
+```
