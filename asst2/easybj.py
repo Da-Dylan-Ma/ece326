@@ -7,15 +7,24 @@
 
 from table import Table
 from collections import defaultdict
+import timeit
 
-HARD_CODE =['4','5','6','7','8','9','10','11','12','13','14',
-            '15','16','17','18','19','20'] # hard hand codes
+
+
+###################
+##   CONSTANTS   ##
+###################
+
+BUST_CODE = "00" # busted hand code
+HARD_CODE = ['4','5','6','7','8','9','10','11','12','13','14',
+             '15','16','17','18','19','20'] # hard hand codes
 SOFT_CODE = ['AA','A2','A3','A4','A5','A6','A7','A8','A9'] # soft hand codes
 SPLIT_CODE = ['22','33','44','55','66','77','88','99','TT','AA'] # can split
 NON_SPLIT_CODE = HARD_CODE + SOFT_CODE # cannot split
 STAND_CODE = HARD_CODE + ['21'] + SOFT_CODE # can stand
 PLAYER_CODE = HARD_CODE + SPLIT_CODE + SOFT_CODE[1:] # strategy table y-labels
 DEALER_CODE = HARD_CODE + SOFT_CODE[:6] # strategy table x-labels
+DEALER_STAND_CODE = HARD_CODE[-4:] + ["21", "BJ", BUST_CODE]
 
 # All possible starting hands (hard 4 is always 22, and hard 20 is always TT)
 INITIAL_CODE = HARD_CODE[1:-1] + SPLIT_CODE + SOFT_CODE[1:] + ['BJ']
@@ -24,6 +33,40 @@ BUST = 0 # representation of busted hand
 DISTINCT = ['A','2','3','4','5','6','7','8','9','T'] # distinct card values
 NUM_FACES = 4 # number of cards with 10 points
 NUM_RANKS = 13 # number of ranks in a French deck
+
+
+
+###########################
+##   UTILITY FUNCTIONS   ##
+###########################
+
+def profile(f):
+    def wrapper(*args, **kwargs):
+        start_time = timeit.default_timer()
+        result = f(*args, **kwargs)
+        end_time = timeit.default_timer()
+        tdelta = end_time - start_time
+        print(f"INFO: {f.__name__} ran in {tdelta:.3f} seconds.")
+    return wrapper
+
+def code2score(code):
+    """ Get score from code. """
+    uniques = {"BJ":21, "21":21, "TT":20, "AA":12}
+    if code in uniques: return uniques[code]
+    if code in HARD_CODE: return int(code)
+    if code in SOFT_CODE: return int(code[1])+11
+    return 2*int(code[0]) # SPLIT_CODE
+
+def code2cards(code):
+    """ Get possible cards from code, avoiding collisions. """
+    uniques = {"BJ":"AT", "21":"777", "20":"28T", "4":"4"}
+    if code in uniques: return uniques[code]
+    if code in HARD_CODE:
+        return "2"+str(int(code)-2) if int(code) <= 11 else "T"+str(int(code)-10)
+    return code # SOFT_CODE or SPLIT_CODE
+
+def cards2code(cards, dealer=False):
+    return Hand(cards, dealer=dealer).code()
 
 def isclose(a, b=1., rel_tol=1e-09, abs_tol=0.0):
     """ Returns whether a and b are close enough in floating point value """
@@ -39,10 +82,19 @@ def card_value(card):
     if card == "T": return 10
     return int(card)
 
+
+
+####################
+##   HAND CLASS   ##
+####################
+
 class Hand:
     """ Represents a Blackjack hand (owned by either player or dealer) """
-    def __init__(self, x, y, dealer=False):
-        self.cards = [x, y]
+
+    def __init__(self, cards, dealer=False):
+        """ cards: iterable of cards
+            dealer: boolean, owner of hand is dealer """
+        self.cards = list(cards)
         self.is_dealer = dealer
 
     def probability(self):
@@ -53,7 +105,7 @@ class Hand:
         return p
 
     def code(self, nosplit=False):
-        """ Returns the 'XX' code that represents the hand, 0 if busted
+        """ Returns the 'XX' code that represents the hand, '00' if busted
             nosplit: True if hand can split """
         # Note: self.cards may have more than 2 cards
         value = sum(map(card_value, self.cards))
@@ -64,7 +116,7 @@ class Hand:
                     return self.cards[0]*2 # split
             if value == 11 and "A" in self.cards: return "BJ" # blackjack
 
-        if value > 21: return BUST # bust
+        if value > 21: return BUST_CODE # bust
         if value >= 11: return str(value) # hard
         if "A" in self.cards:
             if not self.is_dealer or value <= 7:
@@ -72,12 +124,25 @@ class Hand:
             return str(value+10) # dealer cannot hit > A6
         return str(value) # hard
 
+    def value(self):
+        """ Returns score of Hand, 0 if busted """
+        value = sum(map(card_value, self.cards))
+        if "A" in self.cards and value <= 11: return value + 10
+        if value <= 21: return value
+        return BUST
+
+
+
+##########################
+##   CALCULATOR CLASS   ##
+##########################
+
 class Calculator:
     """ Singleton class to store all the results. """
 
     def __init__(self):
         self.initprob = Table(float, DEALER_CODE + ['BJ'], INITIAL_CODE, unit='%')
-        self.dealprob = defaultdict(dict)
+        self.dealprob = defaultdict(lambda: defaultdict(lambda: 0)) # initialize 0
         self.stand_ev = Table(float, DEALER_CODE, STAND_CODE)
         self.hit_ev = Table(float, DEALER_CODE, NON_SPLIT_CODE)
         self.double_ev = Table(float, DEALER_CODE, NON_SPLIT_CODE)
@@ -86,8 +151,13 @@ class Calculator:
         self.strategy = Table(str, DEALER_CODE, PLAYER_CODE)
         self.advantage = 0.
 
-    def make_initial_cell(self, player, dealer):
-        """ Populate initial probability table """
+
+    #################################
+    ##  INITIAL PROBABILITY TABLE  ##
+    #################################
+
+    def create_initial_cell(self, player, dealer):
+        """ Populate cell in initial probability table """
         table = self.initprob
         dc = dealer.code()
         pc = player.code()
@@ -97,19 +167,19 @@ class Calculator:
         else:
             table[pc,dc] += prob
 
-    def make_initial_table(self):
+    @profile
+    def create_initial_table(self):
         """ Initialize probability table """
-        #
         # TODO: refactor so that other table building functions can use it
-        #
         for i in DISTINCT:
             for j in DISTINCT:
                 for x in DISTINCT:
                     for y in DISTINCT:
-                        dealer = Hand(i, j, dealer=True)
-                        player = Hand(x, y)
-                        self.make_initial_cell(player, dealer)
+                        dealer = Hand([i, j], dealer=True)
+                        player = Hand([x, y])
+                        self.create_initial_cell(player, dealer)
 
+    @profile
     def verify_initial_table(self):
         """ Verify sum of initial table is close to 1 """
         total = 0.
@@ -118,17 +188,50 @@ class Calculator:
                 total += self.initprob[y,x]
         assert(isclose(total))
 
+
+    ################################
+    ##  DEALER PROBABILITY TABLE  ##
+    ################################
+
+    @profile
+    def create_dealer_table(self):
+        """ Populate dealer table """
+        # Base cases
+        for code in DEALER_STAND_CODE: self.dealprob[code][code2score(code)] = 1.0
+        for code in DEALER_CODE: self.get_dealer_prob(code)
+
+    def get_dealer_prob(self, code):
+        """ Returns probabilities of possible dealer outcomes """
+        table = self.dealprob
+        if code in table: return table[code]
+
+        curr_prob = table[code]
+        for card in DISTINCT: # all possible draws
+            cards = cards2code(code2cards(code)+card, True)
+            next_prob = self.get_dealer_prob(cards) # assume probs exists
+            for score, prob in next_prob.items():
+                curr_prob[score] += probability(card)*next_prob[score]
+
+        return curr_prob # return probabilities, for recursion
+
+    @profile
+    def verify_dealer_table(self):
+        """ Assert sum of probabilities equal 1 """
+        for probs in self.dealprob.values():
+            assert(isclose(sum(probs.values())))
+
+
+
 def calculate():
     """ Returns a dictionary containing all calculated ev tables and
         final strategy table """
+
     calc = Calculator()
-    calc.make_initial_table()
 
-    # TODO: uncomment once you finished your table implementation
-    #       and Hand.code implementation
-    #calc.verify_initial_table()
-
-    # TODO: calculate all other tables and numbers
+    calc.create_initial_table()
+    calc.verify_initial_table()
+    calc.create_dealer_table()
+    calc.verify_dealer_table()
 
     return {
         'initial' : calc.initprob,
@@ -143,4 +246,5 @@ def calculate():
     }
 
 if __name__ == "__main__":
-    print(calculate())
+    result = calculate()
+    dealer_table = result["dealer"]
