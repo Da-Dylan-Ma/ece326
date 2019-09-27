@@ -69,6 +69,59 @@ The goal is to use previously calculated payoff tables (cached as part of dynami
 
 #### Hit payoff
 
+I may have misunderstood what the calculation of the hit payoff involved.
+
+The idea is likely to find the maximum payoff between hitting and standing, then assigning the payoff as the hit payoff for the encounter.
+In other words,
+
+```python
+def create_hit_table(self):
+    """ Populate hit EV table """
+    for code in NON_SPLIT_CODE:
+        for dealer_code in DEALER_CODE:
+            self.get_hit_outcome(code, dealer_code)
+
+def get_hit_outcome(self, code, dealer_code):
+    table = self.hit_ev
+    if code == "21": return self.stand_ev["21", dealer_code]
+    if code == BUST_CODE: return -1.0
+
+    outcome = table[code, dealer_code]
+    if outcome != None: return outcome
+
+    payoff = 0.0
+    for card in DISTINCT: # all possible draws
+        next_code = cards2code(code2cards(code)+card, nosplit=True)
+        payoff += probability(card)*self.get_hit_outcome(next_code, dealer_code)
+
+    outcome = max(self.stand_ev[code, dealer_code], payoff)
+    table[code, dealer_code] = outcome
+    return outcome
+```
+
+This is in contrast to the previously expounded idea of calculating the actual probabilities of getting 21 or bust, and comparing pairwise with the dealer probabilities, or:
+
+```python
+PLAYER_STAND_CODE = ["21", "00"]
+
+def create_hit_table_deprec(self):
+    """ Populate hit EV table """
+    table = self.hit_ev
+    for code in NON_SPLIT_CODE:
+        for dealer_code in DEALER_CODE:
+            player_probs = self.playerprob[code]
+            dealer_probs = self.dealprob[dealer_code]
+
+            payoff = 0.0
+            for player_score, player_prob in player_probs.items():
+                for dealer_score, dealer_prob in dealer_probs.items():
+                    if player_score > dealer_score:
+                        payoff += player_prob * dealer_prob
+                    elif player_score < dealer_score:
+                        payoff -= player_prob * dealer_prob
+            table[code, dealer_code] = payoff
+```
+
 The hit payoff can be calculated once the stand payoff is calculated. Suppose we have H17-H19, and the square bracketed payoffs are unknown at the moment,
 
 | Player | Probability | Payoff |
@@ -92,53 +145,9 @@ In order to establish the payoff, we determine the hit *and* stand payoffs in ea
 || **HIT** | -11/13 |
 || **STAND** | **+1** |
 
-##### H19-H19
-Accounting for the 1/13 probability of getting H20 with an ace,
-
-| Player | Probability | Payoff |
-|---|---|---|
-| 21 | 1/13 + 1/13(1/13) | +14/169 |
-| bust | 11/13 + 1/13(12/13) | -155/169 |
-|| **HIT** | -141/169 |
-|| **STAND** | **0** |
-
-As a reminder, according to the assignment, it is not as straightforward as knowing that H20-H19 calls for a stand, and hence H20 will have the payoff +1/13. The base cases for stopping recursion for hitting are *only 21 and busting alone*. That means the table below is supposedly bogus:
-
-| Player | Probability | Payoff |
-|---|---|---|
-| 20 | 1/13 | +1/13 |
-| 21 | 1/13 | +1/13 |
-| bust | 11/13 | -11/13 |
-|| **HIT** | -9/13 |
-|| **STAND** | **0** |
-
-It is nonsense probabilistically, but it has some merits from a programming perspective to minimize complexity.
-
-##### H18-H19
-Accounting for the probability of obtaining 21 from both H20-H19 and H19-H19,
-
-| Player | Probability | Payoff |
-|---|---|---|
-| 21 | 1/13 + 1/13(1/13) + 1/13(14/169) | +196/2197 |
-| bust | 10/13 + 1/13(12/13) + 1/13(155/169) | -2001/2197 |
-|| **HIT** | **-1805/2197** |
-|| **STAND** | -1 |
-
-##### Fitting H17-H19 together
-Again, we ignore all the payoffs and only assume 21 is the target hand we want.
-
-| Player | Probability | Payoff |
-|---|---|---|
-| 21 | 1/13 + 1/13(1/13) + 1/13(14/169) + 1/13(196/2197) | +2744/28561 |
-| bust | 9/13 + 1/13(12/13) + 1/13(155/169) + 1/13(2001/2197) | -25817/28561 |
-|| **HIT** | **-23073/28561** |
-|| **STAND** | -1 |
-
----
-
-## Implementation
-
-
+We can then assign the *hit outcome* to be the maximum of those two, i.e. +1.
+Memoization can be performed to obtain the maximum of hit vs stand payoff.
+If the value is still unknown, we continue recursing until the probability for hit is -1, i.e. when 21 is reached, after which we obtain the result from the stand table because it will always have a higher payoff.
 
 ---
 

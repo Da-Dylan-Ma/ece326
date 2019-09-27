@@ -15,17 +15,17 @@ import easybj
 def print_2d_table(name, table):
     # column width
     colwidth = 6 if table.celltype is float else 2
-    
+
     # y-label width (for first column)
     ylwidth = max([len(str(y)) for y in table.ylabels])
-    
+
     # print table name
     print(name + ":")
-    
+
     # print title row (space delimited labels)
-    print(" ".join([ " "*ylwidth ] + 
+    print(" ".join([ " "*ylwidth ] +
           [ str(x)[:colwidth].center(colwidth) for x in table.xlabels ]))
-    
+
     # print each row from the table
     for y in table.ylabels:
         row = [ str(y).rjust(ylwidth) ]
@@ -64,14 +64,14 @@ def print_result(name, result):
         print_dealer_tables(result)
     else:
         print_2d_table(name, result)
-          
+
 #
 # Parses command line and prints selected tables
 #
 def main(argc, argv):
     errors = []
     results = easybj.calculate()
-    
+
     if argc == 1:
         # print all results
         for name, result in results.items():
@@ -83,7 +83,7 @@ def main(argc, argv):
                 print_result(name, results[name])
             else:
                 errors.append(name)
-      
+
     if len(errors) > 0:
         print("%s: result(s) not found:"%argv[0], " ".join(errors))
 
@@ -91,4 +91,3 @@ def main(argc, argv):
 if __name__ == "__main__":
     import sys
     main(len(sys.argv), sys.argv)
-

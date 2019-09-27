@@ -67,8 +67,8 @@ def code2cards(code):
         return "2"+str(int(code)-2) if int(code) <= 11 else "T"+str(int(code)-10)
     return code # SOFT_CODE or SPLIT_CODE
 
-def cards2code(cards, dealer=False):
-    return Hand(cards, dealer=dealer).code()
+def cards2code(cards, dealer=False, nosplit=False):
+    return Hand(cards, dealer=dealer).code(nosplit=nosplit)
 
 def isclose(a, b=1., rel_tol=1e-09, abs_tol=0.0):
     """ Returns whether a and b are close enough in floating point value """
@@ -198,12 +198,13 @@ class Calculator:
     @profile
     def create_dealer_table(self):
         """ Populate dealer table """
+        table = self.dealprob
         # Add base cases for recursion termination
-        for code in DEALER_STAND_CODE: self.dealprob[code][code2score(code)] = 1.0
-        for code in DEALER_CODE: self.get_dealer_prob(code)
+        for code in DEALER_STAND_CODE: table[code][code2score(code)] = 1.0
+        for code in DEALER_CODE: self.get_dealer_prob(code) # memoization
 
         # Remove bust code
-        del self.dealprob[BUST_CODE]
+        del table[BUST_CODE]
 
     def get_dealer_prob(self, code):
         """ Returns probabilities of possible dealer outcomes """
@@ -237,9 +238,8 @@ class Calculator:
         # Uses dealer table probabilities
         table = self.stand_ev
         for code in STAND_CODE:
+            player_score = code2score(code)
             for dealer_code in DEALER_CODE:
-                player_score = code2score(code)
-
                 payoff = 0.0
                 for dealer_score, prob in self.dealprob[dealer_code].items():
                     if dealer_score == BUST or dealer_score < player_score:
@@ -247,6 +247,36 @@ class Calculator:
                     elif dealer_score > player_score:
                         payoff -= prob
                 table[code, dealer_code] = payoff
+
+
+    ########################
+    ##  HIT PAYOFF TABLE  ##
+    ########################
+
+    @profile
+    def create_hit_table(self):
+        """ Populate hit EV table """
+        for code in NON_SPLIT_CODE:
+            for dealer_code in DEALER_CODE:
+                self.get_hit_outcome(code, dealer_code)
+
+    def get_hit_outcome(self, code, dealer_code):
+        table = self.hit_ev
+        if code == "21": return self.stand_ev["21", dealer_code]
+        if code == BUST_CODE: return -1.0
+
+        outcome = table[code, dealer_code]
+        if outcome != None: return outcome
+
+        payoff = 0.0
+        for card in DISTINCT: # all possible draws
+            next_code = cards2code(code2cards(code)+card, nosplit=True)
+            payoff += probability(card)*self.get_hit_outcome(next_code, dealer_code)
+
+        outcome = max(self.stand_ev[code, dealer_code], payoff)
+        table[code, dealer_code] = outcome
+        return outcome
+
 
 
 def calculate():
@@ -259,11 +289,16 @@ def calculate():
     calc.verify_initial_table()
     calc.create_dealer_table()
     calc.verify_dealer_table()
+    calc.create_player_table()
+    calc.verify_player_table()
     calc.create_stand_table()
+    # calc.create_hit_table_deprec()
+    calc.create_hit_table()
 
     return {
         'initial' : calc.initprob,
         'dealer' : calc.dealprob,
+        'player' : calc.playerprob,
         'stand' : calc.stand_ev,
         'hit' : calc.hit_ev,
         'double' : calc.double_ev,
