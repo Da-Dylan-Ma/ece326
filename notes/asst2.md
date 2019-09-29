@@ -7,8 +7,8 @@
 3. Generate dealer/player tables:
     + Calculate dealer table. (done)
     + Calculate player stand table. (done)
-    + Calculate player hit/double table.
-    + Calculate player split table.
+    + Calculate player hit/double table. (done)
+    + Calculate player split table. (done)
 4. Generate strategy table based on optimal table calculations.
 5. Calculate theoretical player advantage.
 

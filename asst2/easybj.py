@@ -265,9 +265,10 @@ class Calculator:
         if code == "21": return self.stand_ev["21", dealer_code]
         if code == BUST_CODE: return -1.0
 
-        outcome = table[code, dealer_code]
+        outcome = table[code, dealer_code] # memoization
         if outcome != None: return outcome
 
+        # Hit once, and determine outcome based on optimal outcome
         payoff = 0.0
         for card in DISTINCT: # all possible draws
             next_code = cards2code(code2cards(code)+card, nosplit=True)
@@ -276,6 +277,71 @@ class Calculator:
         outcome = max(self.stand_ev[code, dealer_code], payoff)
         table[code, dealer_code] = outcome
         return outcome
+
+
+    ###########################
+    ##  DOUBLE PAYOFF TABLE  ##
+    ###########################
+
+    @profile
+    def create_double_table(self):
+        """ Populate double EV table """
+        # TODO: Merge with hit EV by multiplication of 2
+        for code in NON_SPLIT_CODE:
+            for dealer_code in DEALER_CODE:
+                self.get_double_outcome(code, dealer_code)
+
+    def get_double_outcome(self, code, dealer_code):
+        table = self.double_ev
+        if code == "21": return 2*self.stand_ev["21", dealer_code]
+        if code == BUST_CODE: return -2.0
+
+        outcome = table[code, dealer_code] # memoization
+        if outcome != None: return outcome
+
+        # Hit once, and determine outcome based on optimal outcome
+        payoff = 0.0
+        for card in DISTINCT: # all possible draws
+            next_code = cards2code(code2cards(code)+card, nosplit=True)
+            payoff += probability(card)*self.get_double_outcome(next_code, dealer_code)
+
+        outcome = max(2*self.stand_ev[code, dealer_code], payoff)
+        table[code, dealer_code] = outcome
+        return outcome
+
+
+    ###########################
+    ##  SPLIT PAYOFF TABLE  ##
+    ###########################
+
+    @profile
+    def create_split_table(self):
+        """ Populate split EV table """
+        # TODO: Merge with hit EV by multiplication of 2
+        for code in SPLIT_CODE:
+            for dealer_code in DEALER_CODE:
+                self.get_split_outcome(code, dealer_code)
+
+    def get_split_outcome(self, code, dealer_code):
+        # find best between hits, doubles and splits
+        table = self.split_ev
+        split_card = code[0]
+        payoff = 0.0
+        # hit sequence
+        for card in DISTINCT:
+            next_code = cards2code(split_card+card, nosplit=True) # assume no split
+            # how about when no more splits are allowed? need to account for that?
+            # should split be accounted? will lead to infinite loop.
+            # if no, then no special case for AA
+            if next_code in ("21", "BJ"):
+                payoff += probability(card)*self.stand_ev["21", dealer_code]
+            elif next_code in BUST_CODE:
+                payoff += probability(card)*-1
+            else:
+                payoff += probability(card)*max(self.stand_ev[next_code, dealer_code], self.hit_ev[next_code, dealer_code], self.double_ev[next_code, dealer_code])
+
+        table[code, dealer_code] = payoff*2 # split hands
+
 
 
 
@@ -289,16 +355,15 @@ def calculate():
     calc.verify_initial_table()
     calc.create_dealer_table()
     calc.verify_dealer_table()
-    calc.create_player_table()
-    calc.verify_player_table()
     calc.create_stand_table()
-    # calc.create_hit_table_deprec()
     calc.create_hit_table()
+    calc.create_double_table()
+    calc.create_split_table()
+
 
     return {
         'initial' : calc.initprob,
         'dealer' : calc.dealprob,
-        'player' : calc.playerprob,
         'stand' : calc.stand_ev,
         'hit' : calc.hit_ev,
         'double' : calc.double_ev,
