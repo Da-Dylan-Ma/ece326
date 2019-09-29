@@ -8,14 +8,18 @@
     + Calculate dealer table. (done)
     + Calculate player stand table. (done)
     + Calculate player hit/double table. (done)
-    + Calculate player split table. (done)
-4. Generate strategy table based on optimal table calculations.
-5. Calculate theoretical player advantage.
+    + Calculate player split table. (done, verify?)
+4. Generate strategy table based on optimal table calculations. (done, verify?)
+5. Calculate theoretical player advantage. (done)
 
 ### Notes
 
-+ Will the dealer hit in `H15-H16`, even though it is guaranteed a win?
-+ Why is `H20-H19` not have a stand payoff of +1, since we know the behaviour of the dealer, i.e. will not hit? Is this strategy to calculate until 21/bust base cases truly the optimal strategy?
++ Will the dealer hit in `H15-H16`, even though it is guaranteed a win? Yes.
++ In calculating the split outcome, do we assume that no further splits are allowed? Possible options:
+    1. Infinite loop in split calculation
+    2. Additional variable to account for number of times hand can split (from where?)
+    3. No special case for 'AA' if no split
++ Must the secondary action be hit or stand only? Or can include double, surrender, split?
 
 ---
 

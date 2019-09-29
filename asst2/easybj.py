@@ -42,13 +42,16 @@ NUM_RANKS = 13 # number of ranks in a French deck
 ##   UTILITY FUNCTIONS   ##
 ###########################
 
+PERFORMANCE_DATA = ""
+
 def profile(f):
     def wrapper(*args, **kwargs):
+        global PERFORMANCE_DATA
         start_time = timeit.default_timer()
         result = f(*args, **kwargs)
         end_time = timeit.default_timer()
         tdelta = end_time - start_time
-        print(f"INFO: {f.__name__} ran in {tdelta:.3f} seconds.")
+        PERFORMANCE_DATA += "\n" + f"INFO: {f.__name__} ran in {tdelta:.3f} seconds."
     return wrapper
 
 def code2score(code):
@@ -310,14 +313,13 @@ class Calculator:
         return outcome
 
 
-    ###########################
+    ##########################
     ##  SPLIT PAYOFF TABLE  ##
-    ###########################
+    ##########################
 
     @profile
     def create_split_table(self):
         """ Populate split EV table """
-        # TODO: Merge with hit EV by multiplication of 2
         for code in SPLIT_CODE:
             for dealer_code in DEALER_CODE:
                 self.get_split_outcome(code, dealer_code)
@@ -339,11 +341,56 @@ class Calculator:
                 payoff += probability(card)*-1
             else:
                 payoff += probability(card)*max(self.stand_ev[next_code, dealer_code], self.hit_ev[next_code, dealer_code], self.double_ev[next_code, dealer_code])
+        table[code, dealer_code] = payoff*2 # split hands has double chances
+        return payoff*2
 
-        table[code, dealer_code] = payoff*2 # split hands
+
+    ######################
+    ##  OPTIMAL ACTION  ##
+    ######################
+
+    @profile
+    def create_optimal_table(self):
+        """ Populate optimal EV table and strategy """
+        for code in PLAYER_CODE:
+            for dealer_code in DEALER_CODE:
+                evs = {"R": -0.5}
+                tables = (self.stand_ev, self.hit_ev, self.double_ev, self.split_ev)
+                actions = ("S", "H", "D", "P")
+                for table, action in zip(tables, actions):
+                    try:
+                        evs[action] = table[code, dealer_code]
+                    except KeyError:
+                        try:
+                            evs[action] = table[cards2code(code, nosplit=True), dealer_code] # stand/hit for split_codes
+                        except:
+                            pass # ignore non-valid accesses, i.e. non-valid action
+
+                # best action
+                opt_action, opt_ev = max(evs.items(), key=lambda kv: kv[1])
+                if opt_action in ("D", "P", "R"):
+                    opt_action += max(filter(lambda kv: kv[0] not in ("D", "P", "R"), evs.items()), key=lambda kv: kv[1])[0].lower()
+
+                self.optimal_ev[code, dealer_code] = opt_ev
+                self.strategy[code, dealer_code] = opt_action
 
 
+    ########################
+    ##  PLAYER ADVANTAGE  ##
+    ########################
 
+    @profile
+    def calculate_player_advantage(self):
+        for pc in INITIAL_CODE:
+            for dc in DEALER_CODE + ["BJ"]:
+                if dc == "BJ" and pc == "BJ": continue
+                elif dc != "BJ" and pc == "BJ":
+                    self.advantage += self.initprob[pc, dc] * 1.5
+                elif dc == "BJ" and pc != "BJ":
+                    self.advantage += self.initprob[pc, dc] * -1
+                else:
+                    self.advantage += self.initprob[pc, dc]\
+                                    * self.optimal_ev[pc, dc]
 
 def calculate():
     """ Returns a dictionary containing all calculated ev tables and
@@ -359,6 +406,8 @@ def calculate():
     calc.create_hit_table()
     calc.create_double_table()
     calc.create_split_table()
+    calc.create_optimal_table()
+    calc.calculate_player_advantage()
 
 
     return {
@@ -384,3 +433,5 @@ if __name__ == "__main__":
     o = result["optimal"]
     strategy = result["strategy"]
     a = result["advantage"]
+
+    print(PERFORMANCE_DATA)
