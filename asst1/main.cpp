@@ -19,9 +19,7 @@
 
 static void player_summary(Player * player);
 
-int
-main(int argc, const char * argv[])
-{
+int main(int argc, const char * argv[]) {
 	Config config;
 
 	if (config.process_arguments(argc, argv) < 0)
@@ -49,9 +47,7 @@ main(int argc, const char * argv[])
 	return EXIT_SUCCESS;
 }
 
-static void
-player_summary(Player * player)
-{
+static void player_summary(Player * player) {
 	int hands_played;
 	double balance;
 	double advantage;

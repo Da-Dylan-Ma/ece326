@@ -21,20 +21,17 @@ class Shoe;
 class Config;
 
 class Hand {
-public:
-    Player* player;
-    Shoe*shoe;
+    Shoe* shoe; // to allow hit
     std::vector<char> cards;
-    double bet;
-    bool action_taken;
     bool action_allowed;
-    char split_card;
-    bool can_player_split;
+    bool action_taken = false;
+    bool doubled = false;
+    bool can_player_split = true;
+    char split_card = 0; // card if Hand pending split, 0 otherwise
     bool surrendered = false;
-    // int num_splits_left;
 
-    Hand(Player* p, Shoe* s);
-    Hand(Player* p, Shoe* s, char card_from_split);
+public:
+    Hand(Shoe*, char);
 
     /*----- QUERIES -----*/
     bool is_blackjack() const;
@@ -42,8 +39,12 @@ public:
     bool has_ace() const;
     bool can_play() const;
     bool can_double() const;
+    bool has_doubled() const;
     bool can_surrender() const;
+    bool has_surrendered() const;
     bool can_split() const;
+
+	friend std::ostream& operator<<(std::ostream&, const Hand&);
 
     /*----- GETTERS -----*/
     char get_split_card() const;
@@ -52,7 +53,6 @@ public:
     int get_hand_value_min() const;
 
     /*----- SETTERS -----*/
-    void add_card();
     void add_card(char card);
     void disable_split();
     void call_stand();
@@ -65,33 +65,28 @@ public:
 class Blackjack {
 	Player * player;
 	Shoe * shoe;
-    std::vector<Hand*> hands; // Keep track of hands available to be played
-    Hand* dealer_hand_ptr; // Save dealer's hand
-    bool blackjack_found; // Quick terminate
-    double profit; // Total
+    std::vector<Hand*> hands;
+    Hand* dhand; // dealer's hand
+    bool blackjack_found = false; // determine if game should continue
+    double profit = 0.0; // earnings in single game
+
+    const double INITIAL_BET = 1.0;
+    const unsigned int MAX_HAND_NUM = 4;
 
 public:
 	Blackjack(Player * p, Shoe * s);
 	~Blackjack();
 
-	/*
-	 * Start a game of Blackjack
-	 *
-	 * Returns first hand to be played, nullptr if either dealer or player's
-	 * initial hand is blackjack (or both)
-	 */
-	Hand * start();
-	const Hand * dealer_hand() const; // Returns dealer's hand
-	Hand * next(); // Returns next hand to be played (may be the same hand)
-	void finish(); // Call once next() returns nullptr
-    void print_encounter(Hand* hand);
+	Hand* start();
+	const Hand* dealer_hand() const;
+	Hand* next();
+	void finish();
+    void payout(double);
+    void print_encounter(Hand*);
 
-	friend std::ostream & operator<<(std::ostream &, const Blackjack &);
+	friend std::ostream& operator<<(std::ostream&, const Blackjack&);
 };
 
-/*
- * Returns string representation of currency for v
- */
-std::string to_currency(double v);
+std::string to_currency(double v); // Returns str repr of currency for v
 
 #endif

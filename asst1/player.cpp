@@ -46,11 +46,11 @@ void ManualPlayer::play(Hand* hand, const Hand* dealer) {
         std::string cmd; std::getline(std::cin, cmd);
         if (cmd.size() == 0) cmd = "a";
         switch (std::tolower(cmd[0])) {
-            case 'h': return hand->call_hit();
-            case 's': return hand->call_stand();
-            case 'd': if (can_double) return hand->call_double(); break;
-            case 'r': if (can_surrender) return hand->call_surrender(); break;
-            case 'p': if (can_split) return hand->call_split(); break;
+            case 'h': { hand->call_hit(); return; }
+            case 's': { hand->call_stand(); return; }
+            case 'd': if (can_double) { hand->call_double(); return; } break;
+            case 'r': if (can_surrender) { hand->call_surrender(); return; } break;
+            case 'p': if (can_split) { hand->call_split(); return; } break;
             default: break;
         }
     }
@@ -63,7 +63,6 @@ bool ManualPlayer::again() const {
     if (cmd.size() != 0 && tolower(cmd[0]) == 'q') return false;
     return true;
 }
-
 
 // Only manual mode
 // virtual is used for late binding for subclasses, already defined in Player
