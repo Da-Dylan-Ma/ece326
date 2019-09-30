@@ -8,26 +8,72 @@
  * University of Toronto
  * Fall 2019
  */
- 
+
 #ifndef EASYBJ_H
 #define EASYBJ_H
 
 #include <string>
 #include <iostream>
+#include <vector>
 
 class Player;
 class Shoe;
 class Config;
-class Hand;
+
+class Hand {
+public:
+    Player* player;
+    Shoe*shoe;
+    std::vector<char> cards;
+    double bet;
+    bool action_taken;
+    bool action_allowed;
+    char split_card;
+    bool can_player_split;
+    bool surrendered = false;
+    // int num_splits_left;
+
+    Hand(Player* p, Shoe* s);
+    Hand(Player* p, Shoe* s, char card_from_split);
+
+    /*----- QUERIES -----*/
+    bool is_blackjack() const;
+    bool is_bust() const;
+    bool has_ace() const;
+    bool can_play() const;
+    bool can_double() const;
+    bool can_surrender() const;
+    bool can_split() const;
+
+    /*----- GETTERS -----*/
+    char get_split_card() const;
+    int get_num_cards() const;
+    int get_hand_value() const;
+    int get_hand_value_min() const;
+
+    /*----- SETTERS -----*/
+    void add_card();
+    void add_card(char card);
+    void disable_split();
+    void call_stand();
+    void call_hit();
+    void call_double();
+    void call_split();
+    void call_surrender();
+};
 
 class Blackjack {
 	Player * player;
 	Shoe * shoe;
+    std::vector<Hand*> hands; // Keep track of hands available to be played
+    Hand* dealer_hand_ptr; // Save dealer's hand
+    bool blackjack_found; // Quick terminate
+    double profit; // Total
 
 public:
 	Blackjack(Player * p, Shoe * s);
 	~Blackjack();
-	
+
 	/*
 	 * Start a game of Blackjack
 	 *
@@ -35,25 +81,12 @@ public:
 	 * initial hand is blackjack (or both)
 	 */
 	Hand * start();
-	
-	/*
-	 * Returns dealer's hand
-	 */
-	const Hand * dealer_hand() const { return nullptr; }
-	
-	/*
-	 * Returns next hand to be played (may be the same hand)
-	 */
-	Hand * next();
-	
-	/*
-	 * Call once next() returns nullptr
-	 */
-	void finish();
+	const Hand * dealer_hand() const; // Returns dealer's hand
+	Hand * next(); // Returns next hand to be played (may be the same hand)
+	void finish(); // Call once next() returns nullptr
+    void print_encounter(Hand* hand);
 
 	friend std::ostream & operator<<(std::ostream &, const Blackjack &);
-
-	// TODO: you may add more functions as appropriate
 };
 
 /*

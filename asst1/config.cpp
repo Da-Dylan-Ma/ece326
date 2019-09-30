@@ -15,9 +15,6 @@
 #include <cstdio>
 #include <cstring>
 #include <iostream>
-using std::cout;
-using std::cerr;
-using std::endl;
 
 static int usage(const char * prog) {
 	fprintf(stderr, "usage: %s [-h] [-f FILE|-i SEED [-r FILE]] [[-s] -a FILE NUM]\n", prog);
@@ -75,9 +72,9 @@ int Config::process_arguments(int argc, const char * argv[]) {
             for (int j = 0; j < optc; j++) {
                 if (strcmp(opt, optv[j]) == 0) {
 					if (target == 'A') {
-						cerr << "Error: must specify number of hands when playing automatically." << endl;
+						std::cerr << "Error: must specify number of hands when playing automatically." << std::endl;
 					} else {
-						cerr << argv[0] << ": option requires an argument -- '" << (char)tolower(target) << "'" << endl;
+						std::cerr << argv[0] << ": option requires an argument -- '" << (char)tolower(target) << "'" << std::endl;
 					}
                     return usage(argv[0]);
                 }
@@ -96,7 +93,7 @@ int Config::process_arguments(int argc, const char * argv[]) {
 					char *pEnd;
 			        iseed = strtol(opt, &pEnd, 10);
 			        if ((*pEnd)||(iseed < 0)) {
-						cout << "Error: SEED must be a non-negative integer." << endl;
+						std::cout << "Error: SEED must be a non-negative integer." << std::endl;
 						return usage(argv[0]);
 					}
 					target = 0;
@@ -119,7 +116,7 @@ int Config::process_arguments(int argc, const char * argv[]) {
 					char *pEnd;
 			        anum = strtol(opt, &pEnd, 10);
 			        if ((*pEnd)||(anum <= 0)) {
-						cout << "Error: NUM must be a natural number." << endl;
+						std::cout << "Error: NUM must be a natural number." << std::endl;
 						return usage(argv[0]);
 					}
 					target = 0;
@@ -137,7 +134,7 @@ int Config::process_arguments(int argc, const char * argv[]) {
                     // Special case for "-s", no need for argument parsing
                     if (strcmp(opt, "-s") == 0) {
                         if (sflag) {
-                            cerr << "Error: too many -s options specified." << endl;
+                            std::cerr << "Error: too many -s options specified." << std::endl;
                             return usage(argv[0]);
                         }
                         sflag = true;
@@ -154,17 +151,17 @@ int Config::process_arguments(int argc, const char * argv[]) {
                             case 'i': if (iseed != -1) manyOptionFlag = true; break;
                         }
                         if (manyOptionFlag) {
-                            cerr << "Error: too many -" << target << " options specified." << endl;
+                            std::cerr << "Error: too many -" << target << " options specified." << std::endl;
                             return usage(argv[0]);
                         }
 
-                        //cout << "[STATUS] Target: " << target << endl;
+                        //std::cout << "[STATUS] Target: " << target << std::endl;
                     }
                     break;
                 }
             }
 			if (!opt_flag) {
-				cerr << "Unknown option -- \'" << opt << '\'' << endl;
+				std::cerr << "Unknown option -- \'" << opt << '\'' << std::endl;
 				return usage(argv[0]);
 			}
         }
@@ -173,32 +170,32 @@ int Config::process_arguments(int argc, const char * argv[]) {
     // Check if arguments are still needed
     if (target != 0) {
 		if (target == 'A') {
-			cerr << "Error: must specify number of hands when playing automatically." << endl;
+			std::cerr << "Error: must specify number of hands when playing automatically." << std::endl;
 		} else {
-			cerr << argv[0] << ": option requires an argument -- '" << (char)tolower(target) << "'" << endl;
+			std::cerr << argv[0] << ": option requires an argument -- '" << (char)tolower(target) << "'" << std::endl;
 		}
 		return usage(argv[0]);
     }
 	if ((ffile != nullptr)&&(iseed != -1)) {
-		cerr << "Error: cannot choose both file and random-based shoe." << endl;
+		std::cerr << "Error: cannot choose both file and random-based shoe." << std::endl;
 		return usage(argv[0]);
 	}
 	if ((rfile != nullptr)&&(iseed == -1)) {
-		cerr << "Error: recording is only available for random-based shoe." << endl;
+		std::cerr << "Error: recording is only available for random-based shoe." << std::endl;
 		return usage(argv[0]);
 	}
 	if ((sflag)&&(afile == nullptr)) {
-		cerr << "Error: silent mode is only available when playing automatically." << endl;
+		std::cerr << "Error: silent mode is only available when playing automatically." << std::endl;
 		return usage(argv[0]);
 	}
-	cout << endl;
+	std::cout << std::endl;
 
     // Activate function based on flags (non-empty values)
-	// cout << "[STATUS] ffile = " << ffile << endl;
-    // cout << "[STATUS] iseed = " << iseed << endl;
-    // cout << "[STATUS] rfile = " << rfile << endl;
-    // cout << "[STATUS] afile = " << afile << endl;
-    // cout << "[STATUS] anum = " << anum << endl;
+	// std::cout << "[STATUS] ffile = " << ffile << std::endl;
+    // std::cout << "[STATUS] iseed = " << iseed << std::endl;
+    // std::cout << "[STATUS] rfile = " << rfile << std::endl;
+    // std::cout << "[STATUS] afile = " << afile << std::endl;
+    // std::cout << "[STATUS] anum = " << anum << std::endl;
 
 	// Assign fields
 	strategy_file = afile;
