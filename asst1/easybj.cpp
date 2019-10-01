@@ -82,15 +82,19 @@ std::ostream& operator<<(std::ostream& ostr, const Hand& hand) {
 	for (char card: hand.cards) ostr << card << " "; // print cards
 	int hand_value = hand.get_hand_value();
     int hand_value_min = hand.get_hand_value_min();
-    if (hand_value == 21) {
-        ostr << (hand_value_min == 21? "(hard 21)" : (hand.is_blackjack()? "(BJ)" : "(soft 21)"));
+    if (hand.is_blackjack()) {
+        ostr << "(blackjack)";
     } else if (hand_value > 21) {
         ostr << "(bust)";
+    } else if (hand_value_min <= 11 && hand.has_ace()) {
+        ostr << "(soft " << hand_value << ")";
     } else {
         ostr << "(" << hand_value << ")";
     }
+    
     // Print "DOUBLE" text only when game has ended
     if (!hand.action_allowed && hand.has_doubled()) ostr << " DOUBLE";
+    if (!hand.action_allowed && hand.has_surrendered()) ostr << " SURRENDER";
     return ostr;
 }
 
@@ -292,7 +296,6 @@ std::ostream& operator<<(std::ostream& ostr, const Blackjack& bj) {
     }
     ostr << "Result: " << to_currency(bj.profit) << std::endl;
     ostr << "Current Balance: " << to_currency(bj.player->get_balance()) << std::endl;
-    ostr << std::flush;
 	return ostr;
 }
 
