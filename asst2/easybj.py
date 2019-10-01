@@ -51,7 +51,7 @@ def profile(f):
         result = f(*args, **kwargs)
         end_time = timeit.default_timer()
         tdelta = end_time - start_time
-        PERFORMANCE_DATA += "\n" + f"INFO: {f.__name__} ran in {tdelta:.3f} seconds."
+        PERFORMANCE_DATA += "\n" + "INFO: {} ran in {:.3f} seconds.".format(f.__name__, tdelta)
     return wrapper
 
 def code2score(code):
