@@ -51,6 +51,7 @@ public:
     int get_num_cards() const;
     int get_hand_value() const;
     int get_hand_value_min() const;
+    std::string get_code(bool) const;
 
     /*----- SETTERS -----*/
     void add_card(char card);
@@ -63,8 +64,8 @@ public:
 };
 
 class Blackjack {
-	Player * player;
-	Shoe * shoe;
+	Player* player;
+	Shoe* shoe;
     std::vector<Hand*> hands;
     Hand* dhand; // dealer's hand
     bool blackjack_found = false; // determine if game should continue
@@ -82,7 +83,6 @@ public:
 	Hand* next();
 	void finish();
     void payout(double);
-    void print_encounter(Hand*);
 
 	friend std::ostream& operator<<(std::ostream&, const Blackjack&);
 };

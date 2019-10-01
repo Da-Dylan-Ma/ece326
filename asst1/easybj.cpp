@@ -112,6 +112,27 @@ int Hand::get_hand_value_min() const {
     return value;
 }
 
+// Get player/dealer Hand code
+std::string Hand::get_code(bool is_dealer=false) const {
+    int value = 0;
+    for (char card: cards) value += card_value(card);
+    if (cards.size() == 2) {
+        if (cards[0] == cards[1]) {
+            if (cards[0] == 'A') return "AA"; // special AA
+            if (!is_dealer) {
+                if (card_value(cards[0]) == 10) return "TT";
+                return std::string(2, cards[0]); // split
+            }
+        }
+    }
+    if (value >= 11) return std::to_string(value); // hard
+    if (this->has_ace()) {
+        if (!is_dealer || value<=7) return "A"+std::to_string(value-1); // soft
+        return std::to_string(value+10); // dealer cannot hit > A6
+    }
+    return std::to_string(value); // hard
+}
+
 void Hand::add_card(char card) { this->cards.push_back(card); }
 void Hand::call_stand() {
     this->action_taken = true;
@@ -159,7 +180,6 @@ const Hand* Blackjack::dealer_hand() const {
 // Returns the initial player hand, and start the game. nullptr if game ended
 Hand* Blackjack::start() {
     if (blackjack_found) return nullptr;
-    this->print_encounter(hands[0]);
     return hands[0];
 }
 
@@ -183,7 +203,6 @@ Hand* Blackjack::next() {
     // Select next hand
     for (Hand* hand: hands) {
         if (hand->can_play()) {
-            this->print_encounter(hand);
             return hand;
         }
     }
@@ -264,11 +283,6 @@ void Blackjack::payout(double amount) {
     profit += amount;
 }
 
-void Blackjack::print_encounter(Hand* hand) {
-    std::cout << "Dealer: " << *dhand << std::endl;
-    std::cout << "Player: " << *hand << std::endl;
-}
-
 // Print results of one round
 std::ostream& operator<<(std::ostream& ostr, const Blackjack& bj) {
     ostr << "Dealer: " << *(bj.dhand) << std::endl;
@@ -278,6 +292,7 @@ std::ostream& operator<<(std::ostream& ostr, const Blackjack& bj) {
     }
     ostr << "Result: " << to_currency(bj.profit) << std::endl;
     ostr << "Current Balance: " << to_currency(bj.player->get_balance()) << std::endl;
+    ostr << std::flush;
 	return ostr;
 }
 
