@@ -44,21 +44,12 @@ public:
 	 * hand: the current hand to be played
 	 * dealer: the dealer's hand
 	 */
-	virtual void play(Hand * hand, const Hand * dealer) {
-		
-		(void)hand;
-		(void)dealer;
-	}
+	virtual void play(Hand * hand, const Hand * dealer)= 0;
 	
 	// play again?
-	virtual bool again() const {
-		
-		return false;
-	}
+	virtual bool again() const = 0;
 	
-	virtual ~Player() {
-		
-	}
+	virtual ~Player() = default;
 	
 	static Player * factory(const Config * config);
 };
