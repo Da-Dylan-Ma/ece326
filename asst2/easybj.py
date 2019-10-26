@@ -269,17 +269,22 @@ class Calculator:
     @profile
     def create_hit_table(self):
         """ Populate hit EV table """
+        self.middle = Table(float, DEALER_CODE, NON_SPLIT_CODE)
         for code in NON_SPLIT_CODE:
             for dealer_code in DEALER_CODE:
-                self.get_hit_outcome(code, dealer_code)
+                payoff = 0.0 # process a single hit first
+                for card in DISTINCT: # all possible draws
+                    next_code = cards2code(code2cards(code)+card, nosplit=True)
+                    payoff += probability(card)*self.get_hit_outcome(next_code, dealer_code)
+                self.hit_ev[code, dealer_code] = payoff
 
     def get_hit_outcome(self, code, dealer_code):
-        table = self.hit_ev
+        table = self.middle
         if code == "21": return self.stand_ev["21", dealer_code]
         if code == BUST_CODE: return -1.0
 
         outcome = table[code, dealer_code] # memoization
-        if outcome != None: return outcome
+        if outcome is not None: return outcome
 
         # Hit once, and determine outcome based on optimal outcome
         payoff = 0.0
@@ -302,25 +307,16 @@ class Calculator:
         # TODO: Merge with hit EV by multiplication of 2
         for code in NON_SPLIT_CODE:
             for dealer_code in DEALER_CODE:
-                self.get_double_outcome(code, dealer_code)
+                payoff = 0 # initial hit
+                for card in DISTINCT:  # all possible draws
+                    next_code = cards2code(code2cards(code)+card, nosplit=True)
+                    payoff += probability(card)*self.get_double_outcome(next_code, dealer_code)
+                self.double_ev[code, dealer_code] = payoff
 
     def get_double_outcome(self, code, dealer_code):
-        table = self.double_ev
-        if code == "21": return 2*self.stand_ev["21", dealer_code]
+        if code == "21": return 2 * self.stand_ev["21", dealer_code]
         if code == BUST_CODE: return -2.0
-
-        outcome = table[code, dealer_code] # memoization
-        if outcome != None: return outcome
-
-        # Hit once, and determine outcome based on optimal outcome
-        payoff = 0.0
-        for card in DISTINCT: # all possible draws
-            next_code = cards2code(code2cards(code)+card, nosplit=True)
-            payoff += probability(card)*self.get_double_outcome(next_code, dealer_code)
-
-        outcome = max(2*self.stand_ev[code, dealer_code], payoff)
-        table[code, dealer_code] = outcome
-        return outcome
+        return 2 * self.stand_ev[code, dealer_code]
 
 
     ##########################
