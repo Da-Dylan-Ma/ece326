@@ -8,6 +8,7 @@
 from table import Table
 from collections import defaultdict
 import timeit
+import copy
 
 
 
@@ -71,6 +72,7 @@ def code2cards(code):
     return code # SOFT_CODE or SPLIT_CODE
 
 def cards2code(cards, dealer=False, nosplit=False):
+    if len(cards) == 2 and cards[0] == '0': return BUST_CODE
     return Hand(cards, dealer=dealer).code(nosplit=nosplit)
 
 def isclose(a, b=1., rel_tol=1e-09, abs_tol=0.0):
@@ -122,9 +124,10 @@ class Hand:
             if value == 11 and "A" in self.cards: return "BJ" # blackjack
 
         if value > 21: return BUST_CODE # bust
-        if value >= 11: return str(value) # hard
+        if value > 11: return str(value) # hard, (A 4 6) -> 21
         if "A" in self.cards:
             if not self.is_dealer or value <= 7:
+                if value == 11: return "21" # (A 9 A) -> 21
                 return "A" + str(value-1) # soft
             return str(value+10) # dealer cannot hit > A6
         return str(value) # hard
@@ -155,6 +158,11 @@ class Calculator:
         self.optimal_ev = Table(float, DEALER_CODE, PLAYER_CODE)
         self.strategy = Table(str, DEALER_CODE, PLAYER_CODE)
         self.advantage = 0.
+        self.resplit_ev = [
+            Table(float, DEALER_CODE, STAND_CODE),
+            Table(float, DEALER_CODE, SPLIT_CODE[:-1]),
+            Table(float, DEALER_CODE, SPLIT_CODE[:-1]),
+        ]
 
 
     #################################
@@ -215,12 +223,14 @@ class Calculator:
         if code in table: return table[code]
 
         curr_prob = table[code]
+        curr_prob = copy.deepcopy(table[code])
         for card in DISTINCT: # all possible draws
             cards = cards2code(code2cards(code)+card, dealer=True)
             next_prob = self.get_dealer_prob(cards) # assume probs exists
             for score, prob in next_prob.items():
                 curr_prob[score] += probability(card)*next_prob[score]
 
+        table[code] = curr_prob
         return curr_prob # return probabilities, for recursion
 
     @profile
