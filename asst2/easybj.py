@@ -428,14 +428,14 @@ class Calculator:
         for card1, card2 in generate_card_pairs():
             total_probability = probability(card1)*probability(card2)
 
-            # special case for 'AA', i.e. no additional splits
-            # this rule is weird though, conversion implies can still hit '17' ('A6')
+            # special case for 'AA', i.e. no additional actions after split
             if split_card == "A":
-                # convert soft values to hard values, i.e. numeric score
-                next_code1 = str(code2score(cards2code(split_card+card1, nosplit=True)))
-                next_code2 = str(code2score(cards2code(split_card+card2, nosplit=True)))
-                payoff += total_probability*self.get_0split_outcome(next_code1, dealer_code)
-                payoff += total_probability*self.get_0split_outcome(next_code2, dealer_code)
+                next_code1 = cards2code(split_card+card1, nosplit=True)
+                next_code2 = cards2code(split_card+card2, nosplit=True)
+                if next_code1 == "BJ": next_code1 = "21"
+                if next_code2 == "BJ": next_code2 = "21"
+                payoff += total_probability*self.stand_ev[next_code1, dealer_code]
+                payoff += total_probability*self.stand_ev[next_code2, dealer_code]
 
             # both cards can split
             elif split_card == card1 == card2:
