@@ -57,7 +57,7 @@ def profile(f):
 
 def code2score(code):
     """ Get score from code. """
-    uniques = {"BJ":21, "21":21, "TT":20, "AA":12}
+    uniques = {"BJ":21, "21":21, "TT":20, "AA":12 }
     if code in uniques: return uniques[code]
     if code in HARD_CODE: return int(code)
     if code in SOFT_CODE: return int(code[1])+11
@@ -428,10 +428,12 @@ class Calculator:
         for card1, card2 in generate_card_pairs():
             total_probability = probability(card1)*probability(card2)
 
-            # special case for 'AA', i.e. no additional splits (cannot use 'get_1split_outcome')
+            # special case for 'AA', i.e. no additional splits
+            # this rule is weird though, conversion implies can still hit '17' ('A6')
             if split_card == "A":
-                next_code1 = cards2code(split_card+card1, nosplit=True)
-                next_code2 = cards2code(split_card+card2, nosplit=True)
+                # convert soft values to hard values, i.e. numeric score
+                next_code1 = str(code2score(cards2code(split_card+card1, nosplit=True)))
+                next_code2 = str(code2score(cards2code(split_card+card2, nosplit=True)))
                 payoff += total_probability*self.get_0split_outcome(next_code1, dealer_code)
                 payoff += total_probability*self.get_0split_outcome(next_code2, dealer_code)
 
