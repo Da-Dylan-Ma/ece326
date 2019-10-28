@@ -2,10 +2,111 @@
 
 ## Assignment requirements
 
-See the section on (Solution requirements)[http://fs.csl.toronto.edu/~sunk/asst3.html#specification].
+1. `easydb.py`: Implement Database class for communication
+2. `table.py`: Implement Table class and associated metaclass
+3. `fields.py`: Implement types supported by ORM layer
+4. `__init__.py`: Implement `setup` and `export` functions
+
+See the section on (Solution requirements)[http://fs.csl.toronto.edu/~sunk/asst3.html#specification] for detailed writeup.
 
 ### Notes
 
++ Python `struct` library [documentation](https://docs.python.org/3.6/library/struct.html)
++ Python `socket` library [documentation](https://docs.python.org/3.6/library/socket.html?highlight=socket#module-socket)
+
+---
+
+### API specification
+
+#### Schema: `easydb.py`
+Creates a Database object. If there is an issue with the provided schema, throw the following errors:
++ `TypeError`: Table name or column not a string
++ `ValueError`: type not one of `str`, `float`, `int` or string referencing another table name
++ `orm.IntegrityError`: Cyclic/Non-existent foreign key reference
+
+```python
+import easydb
+
+##############
+##  TASK 1  ##
+##############
+
+# Initialization: creates a Database object.
+# Throw following errors if issues with provided schema:
+# - TypeError: Table name or column not a string
+# - ValueError: Type not one of `str`, `float`, `int` or string table name
+# - orm.IntegrityError: Cyclic/Non-existent foreign key reference
+tb = (
+    ("User", (                  # table_name
+        ("firstName", str),     # (column_name, type)
+        ("lastName", str),
+        ("height", float),
+        ("age", int),
+    )),
+
+    ("Account", (
+        ("user", "User"),       # (column_name, table_reference)
+        ("type", str),
+        ("balance", float),
+    ))
+)
+db = easydb.Database(tb)
+
+##############
+##  TASK 2  ##
+##############
+
+# Connect method
+# Accepts hostname and port number, use socket library
+# No exception handling in method
+db.connect("127.0.0.1", 8080)
+
+##############
+##  TASK 3  ##
+##############
+
+# Close method: disconnect from server
+# Send EXIT command and close socket
+db.close()
+
+##############
+##  TASK 4  ##
+##############
+
+# Implement EasyDB commands
+# Throw corresponding error classes:
+# - NOT_FOUND -> orm.ObjectDoesNotExist
+# - BAD_FOREIGN -> orm.InvalidReference
+# - TXN_ABORT -> orm.TransactionAbort
+# - BAD_TABLE, BAD_VALUE, BAD_ROW -> orm.PacketError
+
+# INSERT
+db.insert(table_name, values)
+pk, version = db.insert("User", ["Jay", "Sung", 5.5, 31])
+
+# UPDATE
+# Atomic update if version not None
+db.update(table_name, pk, values, version=None)
+version = db.update("User", 1, ["Jay", "Sung", 5.5, 31])
+
+# DROP
+# No return value
+db.drop(table_name, pk)
+db.drop("User", 1)
+
+# GET
+db.get(table_name, pk)
+values, version = db.get("User", 1)
+print(values) # ['Jay', 'Sung', 5.5, 31]
+
+# SCAN
+# Query is 3-tuple
+db.scan(table_name, query)
+results = db.scan("Account", ("balance", orm.easydb.OP_GT, 10000))
+print(results) # [1, 3, 7]
+```
+
+#### Model
 None
 
 ---
@@ -179,10 +280,10 @@ Contains the `main` function which allows you to run in interactive mode for tes
 Implement `setup` and `export` functions
 
 ### orm/easydb.py
-Includes a database client needed to communicate with an EasyDB server. To implement
+Includes a database client needed to communicate with an EasyDB server. To implement Database class to send and receive packets to and from the server.
 
 ### orm/table.py
-Defintion for database table. To implement the Table class and its associated metaclass
+Definition for database table. To implement the Table class and its associated metaclass
 
 ### orm/fields.py
 Implement all the fields supported by the ORM layer, including custom fields not natively supported by the underlying database
