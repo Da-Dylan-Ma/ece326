@@ -5,30 +5,6 @@
 # Definition for an ORM database table and its metaclass
 #
 
-########################################
-##  HACK TO RUN SCRIPT IN PKG : BEGIN ##
-########################################
-# Required to run module from within package directory itself, by obtaining
-# reference to `orm` package using cd, then pipelining output using temp stdout
-# Harmless if not deleted: only footprint is `import sys`
-# Note that the unit tests for the other modules will be printed as well
-if __name__ == "__main__":
-    import subprocess, pathlib, sys, os
-    cwd = pathlib.Path.cwd()
-    if cwd.stem == "orm": # currently still in package directory
-        module_name = pathlib.Path(__file__).resolve().stem
-        temp_stdout = "{}.out".format(module_name)
-        with open(temp_stdout, "w") as outfile:
-            cmd = "python -m orm.{}".format(module_name)
-            subprocess.call(cmd.split(), cwd=cwd.parent, stdout=outfile)
-        with open(temp_stdout, "r") as infile: print(infile.read(), end="")
-        os.remove(temp_stdout)
-    quit() # gracefully terminate thread
-#######################################
-##  HACK TO RUN SCRIPT IN PKG : END  ##
-#######################################
-
-
 import orm.easydb
 from collections import OrderedDict
 from orm.exceptions import InvalidReference
@@ -83,18 +59,3 @@ class Table(object, metaclass=MetaTable):
     def delete(self):
         # Implement me.
         pass
-
-
-
-########################################
-##  HACK TO RUN SCRIPT IN PKG : BEGIN ##
-########################################
-# Any unit testing code goes here
-import sys
-if len(sys.argv) == 1 and sys.argv[0] == "-m":
-    pass
-    #print("\n{}\nTest: table.py\n".format("-"*30))
-    #print("No unit tests written")
-#######################################
-##  HACK TO RUN SCRIPT IN PKG : END  ##
-#######################################

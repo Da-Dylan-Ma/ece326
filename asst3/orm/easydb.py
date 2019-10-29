@@ -5,30 +5,6 @@
 # Definition for the Database class for EasyDB
 #
 
-########################################
-##  HACK TO RUN SCRIPT IN PKG : BEGIN ##
-########################################
-# Required to run module from within package directory itself, by obtaining
-# reference to `orm` package using cd, then pipelining output using temp stdout
-# Harmless if not deleted: only footprint is `import sys`
-# Note that the unit tests for the other modules will be printed as well
-if __name__ == "__main__":
-    import subprocess, pathlib, sys, os
-    cwd = pathlib.Path.cwd()
-    if cwd.stem == "orm": # currently still in package directory
-        module_name = pathlib.Path(__file__).resolve().stem
-        temp_stdout = "{}.out".format(module_name)
-        with open(temp_stdout, "w") as outfile:
-            cmd = "python -m orm.{}".format(module_name)
-            subprocess.call(cmd.split(), cwd=cwd.parent, stdout=outfile)
-        with open(temp_stdout, "r") as infile: print(infile.read(), end="")
-        os.remove(temp_stdout)
-    quit() # gracefully terminate thread
-#######################################
-##  HACK TO RUN SCRIPT IN PKG : END  ##
-#######################################
-
-
 import socket
 import struct
 from orm.exceptions import *
@@ -47,15 +23,33 @@ class Database:
     def __repr__(self):
         return "<EasyDB Database object>"
 
-    # constructor
-    #   tables: all the tables (and their structures) in the databse.
     def __init__(self, tables):
-        self.tables = {}
-        for table_name, columns in tables:
+        """ Constructor
+            tables -- all the tables (and their structures) in the database
+        """
+        db_tables = {}
+        for table_name, cols in tables:
             if type(table_name) is not str:
-                raise TypeError("")
-        # Implement me.
-        pass
+                raise TypeError("Table name `{}` is not of type str".format(table_name))
+
+            table = {}
+            for col_name, col_type in cols:
+                if type(col_name) is not str:
+                    raise TypeError("Column name `{}` is not of type str".format(col_name))
+                if col_name in ("id", "pk"):
+                    raise ValueError("Column name `{}` is not allowed".format(col_name))
+                if col_type in (str, float, int):
+                    table[col_name] = col_type
+                elif type(col_type) is str:
+                    if col_type in db_tables:
+                        table[col_name] = col_type
+                    else:
+                        raise IntegrityError("Foreign key reference `{}` does not exist".format(col_type))
+                else:
+                    raise ValueError("Column type `{}` is not allowed".format(col_type))
+            db_tables[table_name] = table # commit to table after
+
+        self.tables = db_tables
 
     # Connect to the database.
     #   host: str, host name
@@ -108,19 +102,3 @@ class Database:
     def scan(self, table_name, query):
         # Implement me.
         pass
-
-
-
-########################################
-##  HACK TO RUN SCRIPT IN PKG : BEGIN ##
-########################################
-# Any unit testing code goes here
-# Note that the unit tests for the other modules will be printed as well
-import sys
-if len(sys.argv) == 1 and sys.argv[0] == "-m":
-    pass
-    #print("\n{}\nTest: easydb.py\n".format("-"*30))
-    #print("No unit tests written")
-#######################################
-##  HACK TO RUN SCRIPT IN PKG : END  ##
-#######################################

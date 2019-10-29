@@ -3,3 +3,7 @@
 *.log
 *.mk
 *.exe
+
+# Coverage reports
+htmlcov/
+.coverage
