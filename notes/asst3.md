@@ -19,7 +19,7 @@ See the section on [Solution requirements](http://fs.csl.toronto.edu/~sunk/asst3
 
 ## ORM API specification
 
-### 1. `easydb.py`
+### 1. `orm/easydb.py`
 
 ```python
 import easydb
