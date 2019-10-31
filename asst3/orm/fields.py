@@ -38,6 +38,7 @@ class Foreign(Field):
     # Implement me.
     def __init__(self, table, blank=False):
         # Implement or change me.
+        self.table = table # temporary
         pass
 
 # DATETIME TYPE

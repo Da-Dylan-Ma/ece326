@@ -5,6 +5,7 @@
 
 import unittest
 import orm
+import schema
 
 class Test_easydb_setup(unittest.TestCase):
 
