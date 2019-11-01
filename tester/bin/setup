@@ -1,27 +1,37 @@
 #!/bin/bash
-
+#
 # This file has variables that are sourced by other scripts in this directory
+# The first 3 sets of variables are most likely needed to be changed 
+# every semester.
+#
+# Kuei Sun <kuei.sun@mail.utoronto.ca>
+# Ashvin Goel <ashvin@eecg.toronto.edu>
+#
+# University of Toronto, 2019
+#
 
-# where to find starter code
-SRC_PATH=${TESTER_PATH}/src
-
-# the prefix for group numbers (e.g. pl-101, os-106)
-PREFIX=pl
-
-# Head TA
-TA="Xue (Chloe) Geng <xue.geng@mail.utoronto.ca>"
-
-# git repo path
-GIT_REP=ssh://ug250.eecg.utoronto.ca/srv/git
+# Lab TAs
+TA_1="Andrew Choi <aj.choi@mail.utoronto.ca>"
+TA_2="Wendy Qiu <wenjun.qiu@mail.utoronto.ca>"
+TA_3="Jeffrey Fang <szuchieh.fang@mail.utoronto.ca>"
+TA_4="Andrew Choi <aj.choi@mail.utoronto.ca>"
 
 # starting number of student groups
-START=1
+START=0
 
 # ending number of student groups
 END=99
 
-# name of grades files
-GRADES_FILE=grades.csv
+DIR_1=asst1
+DIR_2=asst2
+DIR_3=asst3
+DIR_4=asst4
+
+# Files to restore from starter code
+FILES_1="main.cpp shoe.cpp shoe.h config.h player.h Makefile"
+FILES_2="main.py"
+FILES_3=""
+FILES_4=""
 
 # Marks for each lab
 # Update these marks if the scripts are updated
@@ -31,25 +41,31 @@ TOTAL_2=100
 TOTAL_3=100
 TOTAL_4=100
 
+# which class are we using marker for
+CLASS=ece326
+
+# which class suffix is used
+SUFFIX=f
+
+# the prefix for group numbers (e.g. pl-101, os-106)
+PREFIX=pl
+
+# git repo path
+GIT_REP=ssh://ug250.eecg.utoronto.ca/srv/${CLASS}${SUFFIX}
+
+# where to find starter code
+SRC_PATH=/cad2/${CLASS}${SUFFIX}/src
+
 # Source path for each lab
 SRC_1=${SRC_PATH}/easybj.tar
 SRC_2=${SRC_PATH}/optimal.tar
 SRC_3=${SRC_PATH}/easyorm.tar
 SRC_4=${SRC_PATH}/easydb.tar
 
-DIR_1=asst1
-DIR_2=asst2
-DIR_3=asst3
-DIR_4=asst4
+# name of grades files
+GRADES_FILE=grades.csv
 
-# Files to checkout from student repository for each lab
-FILES_1="warmup/fact.c warmup/hello.c warmup/point.c warmup/sorted_points.c warmup/wc.c warmup/words.c"
-FILES_2="threads/show_ucontext.c threads/thread.c"
-FILES_3="threads/thread.c"
-FILES_4="webserver/server_thread.c"
-
-# common functions
-
+# used by mark collection script
 # sets global variables MARKS and TOTAL
 function get_marks() {
     NR=$1
@@ -70,3 +86,4 @@ function get_marks() {
         MARKS=0
     fi
 }
+

@@ -1,4 +1,12 @@
 #!/bin/bash
+#
+# testing and marking framework on the ug lab machines
+#
+# Kuei Sun <kuei.sun@mail.utoronto.ca>
+# Ashvin Goel <ashvin@eecg.toronto.edu>
+#
+# University of Toronto, 2019
+#
 
 BIN_PATH=$(dirname $(readlink -f $BASH_SOURCE))
 TESTER_PATH=$(realpath $BIN_PATH/../)
@@ -14,7 +22,7 @@ export TESTER_PATH=${TESTER_PATH}
 PROG=$(basename $0)
 
 function usage() {
-    echo "Usage: $PROG [-hvVmdc] [-s start] [-e end] lab_nr" 1>&2;
+    echo "Usage: $PROG [-hvVmdc] [-n NAME] [-s start] [-e end] asst_nr" 1>&2;
     echo "       -h: show this message" 1>&2;
     echo "       -v: verbose" 1>&2;
     echo "       -m: run marker" 1>&2;
@@ -22,12 +30,13 @@ function usage() {
     echo "   -e end: run marker until group 'end'" 1>&2;
     echo "       -d: don't checkout code (must come after -m)" 1>&2;
     echo "       -c: only checkout code (must come after -m)" 1>&2;
-    echo "   lab_nr: run test on lab number (1-4)" 1>&2
+    echo "       -n: run only the test with NAME (tester mode only)" 1>&2;
+    echo "  asst_nr: run test on assignment number (1-4)" 1>&2
     exit 1;
 }
 
 # getopts processing
-while getopts "hvVmdcs:e:" ARG ; do
+while getopts "hvVmdcn:s:e:" ARG ; do
     if [ ${ARG} = 'h' ]; then
         usage;
     elif [ ${ARG} = 'v' ]; then
@@ -60,6 +69,11 @@ while getopts "hvVmdcs:e:" ARG ; do
         if ! [[ "$END" =~ ^[0-9]+$ ]] ; then
             usage;
         fi
+    elif [ ${ARG} = 'n' ]; then
+        if [ -n "$MARKER" ]; then
+            usage;
+        fi
+        TESTNAME=$OPTARG;
     else
         usage;
     fi
@@ -75,7 +89,7 @@ NR=$1
 
 # checks if $1 lies between 1-6 (TOTAL_XX specified in setup)
 if [ -z $(eval echo \$TOTAL_$NR) ]; then
-    echo "Bad lab number: $NR" 
+    echo "Bad assignment number: $NR" 
     usage;
 fi
 
@@ -91,7 +105,7 @@ asst_tester() {
     /bin/rm -f tester.log
     /bin/rm -f tester*.out
 
-    for test in ${SCRIPT_PATH}/lab${NR}*.py; do
+    for test in ${SCRIPT_PATH}/lab${NR}-*${TESTNAME}.py; do
         if [ -x $test ]; then
             echo "Running: $test $VERBOSE";
             $test $VERBOSE;
@@ -99,29 +113,35 @@ asst_tester() {
         fi
     done
 
-    # parse the marks file
-    get_marks $NR "tester.out"
-    echo "You have received $MARKS marks out of a total of $TOTAL marks."
+    if [ -z "$TESTNAME" ]; then
+        # parse the marks file
+        get_marks $NR "tester.out"
+        echo "You have received $MARKS marks out of a total of $TOTAL marks."
+    fi
     return 0;
 }
 
 # this will get data from the git repository only
-asst_marker() {
+asst_cloner() {
     NR="$1"
     GROUP="$2"
 
-    # get the original source code
-    SRC=$(eval echo \$SRC_$NR)
-    tar -xf $SRC
-
-    # get the student files from their git repository
-    FILES=$(eval echo \$FILES_$NR)
-    git archive --remote ${GIT_REP}/${PREFIX}-${GROUP}/ece344 Lab${NR}-end $FILES | tar xf -
+    git archive --remote ${GIT_REP}/${PREFIX}-${GROUP}/${CLASS} Asst${NR}-end | tar xf -
     # make sure that the checkout is successful
     if [ $? -ne 0 ]; then
         echo "git checkout was not successful" 1>&2;
         return 1;
     fi
+    
+    # get the student files from their git repository
+    FILES=$(eval echo \$FILES_$NR)
+    DIR=$(eval echo \$DIR_$NR)
+    FILES=$(eval echo "$FILES" | sed "s|[^ ]* *|$DIR/&|g")
+
+    # get the original source code
+    SRC=$(eval echo \$SRC_$NR)
+    echo "Overriding static starter source code:"
+    tar -xvf $SRC $FILES
     
     return 0
 }
@@ -136,13 +156,15 @@ asst_marker() {
     DIR=$(eval echo \$DIR_$NR)
     cd $DIR
 
-    # compile code
-    make
-    if [ $? -ne 0 ]; then
-        echo "make was not successful" 1>&2;
-        return 1;
+    if [ -f Makefile ]; then
+        # compile code
+        make
+        if [ $? -ne 0 ]; then
+            echo "make was not successful" 1>&2;
+            return 1;
+        fi
     fi
-
+    
     # run the tester
     asst_tester ${NR}
 
@@ -174,12 +196,12 @@ else
             # do we have access to the repository?
             # students will have access to only their repository
             if expr "$(groups)" : ".*${PREFIX}-${GROUP}" > /dev/null; then
-                 echo -n "${PREFIX}-${GROUP}: retrieving source code... "
+                echo -n "${PREFIX}-${GROUP}: retrieving source code... "
                 # remember current dir
                 pushd . > /dev/null
                 # create a new directory for the group
                 /bin/rm -rf ${PREFIX}-${GROUP} && mkdir -p ${PREFIX}-${GROUP} && cd ${PREFIX}-${GROUP}
-                asst_marker $NR $GROUP > ../marker-${GROUP}.log 2>&1
+                asst_cloner $NR $GROUP > ../marker-${GROUP}.log 2>&1
                 if [ $? -ne 0 ]; then
                     echo "failed." 1>&2
                 else
