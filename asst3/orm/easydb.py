@@ -8,6 +8,9 @@
 import socket
 import struct
 from orm.exceptions import *
+import orm.easydb_io as io
+
+ISTREAM_BUFFER = 1024
 
 # EasyDB query operators
 OP_EQ = 1  # equal
@@ -38,7 +41,7 @@ class Database:
                     raise TypeError("Column name `{}` is not of type str".format(col_name))
                 if col_name in ("id", "pk"):
                     raise ValueError("Column name `{}` is not allowed".format(col_name))
-                if type(col_type) is str:
+                if io.is_foreign(col_type):
                     if col_type not in table_names:
                         raise IntegrityError("Foreign key reference `{}` does not exist".format(col_type))
                 elif col_type not in (str, float, int):
@@ -59,7 +62,7 @@ class Database:
 
     # Close the connection to the database.
     def close(self):
-        self.send(self.REQUEST("EXIT", 0))
+        self.send(io.REQUEST("EXIT", 0))
         self.socket.close()
 
     # Make the database to add a new row to a database table.
@@ -70,23 +73,24 @@ class Database:
         # Table must exist
         if table_name not in self.table_names:
             raise ValueError("`{}` does not exist.".format(table_name))
-        expected_argc = self.get_table_argc(table_name)
         # Length of arguments must match
+        expected_argc = self.get_table_argc(table_name)
         if len(values) != expected_argc:
             raise ValueError("Number of values do not match: expected {} instead of {}.".format(expected_argc, len(values)))
-        # Must be accepted type
-        for value in values:
-            if type(value) not in (str, int, float):
-                raise ValueError("Invalid type: `{}` is of type {}".format(value, type(value)))
+        # Types of arguments must match
+        expct_types = self.get_table_arg_types(table_name)
+        try:
+            row = io.ROW(values, expct_types) # eager type checking
+        except ValueError as e:
+            raise e
 
-        # Send message
+        # Parse message
         table_id = self.get_table_id(table_name)
-        msg = self.REQUEST("INSERT", table_id) + self.ROW(values)
-        self.send(msg)
+        msg = io.REQUEST("INSERT", table_id) + row
 
-        # Get response
-        response = self.receive()
-        code = self.read_response_code(response[:4])
+        # Parse response
+        reply = self.send_receive(msg)
+        code, reply = io.next_response(reply)
         if code != "OK":
             if code == "BAD_FOREIGN":
                 raise InvalidReference("Referenced row does not exist.")
@@ -95,7 +99,7 @@ class Database:
             else:
                 raise RuntimeError("Unexpected code: `{}`".format(code))
 
-        return self.read_key(response[4:])
+        return io.read_key(reply)
 
     # Make the database to update an existing row in a table.
     #   table_name: str, name of the table
@@ -107,24 +111,28 @@ class Database:
         # Table must exist
         if table_name not in self.table_names:
             raise ValueError("`{}` does not exist.".format(table_name))
+        # pk must be integer
+        if type(pk) is not int:
+            raise ValueError("pk is not of type int, got `{}`.".format(type(pk)))
         expected_argc = self.get_table_argc(table_name)
         # Length of arguments must match
         if len(values) != expected_argc:
             raise ValueError("Number of values do not match: expected {} instead of {}.".format(expected_argc, len(values)))
-        # Must be accepted type
-        for value in values:
-            if type(value) not in (str, int, float):
-                raise ValueError("Invalid type: `{}` is of type {}".format(value, type(value)))
+        # Types of arguments must match
+        expct_types = self.get_table_arg_types(table_name)
+        try:
+            row = io.ROW(values, expct_types) # eager type checking
+        except ValueError as e:
+            raise e
 
-        # Send message
+        # Parse message
         table_id = self.get_table_id(table_name)
-        version = 0 if version is None else version
-        msg = self.REQUEST("UPDATE", table_id) + self.KEY(pk, version) + self.ROW(values)
-        self.send(msg)
+        if version is None: version = 0
+        msg = io.REQUEST("UPDATE", table_id) + io.KEY(pk, version) + row
 
-        # Get response
-        response = self.receive()
-        code = self.read_response_code(response[:4])
+        # Parse response
+        reply = self.send_receive(msg)
+        code, reply = io.next_response(reply)
         if code != "OK":
             if code == "BAD_FOREIGN":
                 raise InvalidReference("Referenced row does not exist.")
@@ -137,7 +145,7 @@ class Database:
             else:
                 raise RuntimeError("Unexpected code: `{}`".format(code))
 
-        return self.read_version(response[4:])
+        return io.read_version(reply)
 
     # Make the database to delete a row in table.
     #   table_name: str, name of the table
@@ -148,14 +156,13 @@ class Database:
         if table_name not in self.table_names:
             raise ValueError("`{}` does not exist.".format(table_name))
 
-        # Send message
+        # Parse message
         table_id = self.get_table_id(table_name)
-        msg = self.REQUEST("DROP", table_id) + self.ID(pk)
-        self.send(msg)
+        msg = io.REQUEST("DROP", table_id) + io.ID(pk)
 
-        # Get response
-        response = self.receive()
-        code = self.read_response_code(response[:4])
+        # Parse response
+        reply = self.send_receive(msg)
+        code = io.read_response(reply)
         if code != "OK":
             if code == "NOT_FOUND":
                 raise ObjectDoesNotExist("Specified row does not exist.")
@@ -176,14 +183,13 @@ class Database:
         if table_name not in self.table_names:
             raise ValueError("`{}` does not exist.".format(table_name))
 
-        # Send message
+        # Parse message
         table_id = self.get_table_id(table_name)
-        msg = self.REQUEST("GET", table_id) + self.ID(pk)
-        self.send(msg)
+        msg = io.REQUEST("GET", table_id) + io.ID(pk)
 
-        # Get response
-        response = self.receive()
-        code = self.read_response_code(response[:4])
+        # Parse response
+        reply = self.send_receive(msg)
+        code, reply = io.next_response(reply)
         if code != "OK":
             if code == "NOT_FOUND":
                 raise ObjectDoesNotExist("Specified row does not exist.")
@@ -192,8 +198,8 @@ class Database:
             else:
                 raise RuntimeError("Unexpected code: `{}`".format(code))
 
-        version = self.read_version(response[4:8])
-        values = self.read_row(response[8:])
+        version, reply = io.next_version(reply)
+        values = io.read_row(reply)
         return values, version
 
     # Make the database to compare a column of every row in a table against
@@ -207,27 +213,37 @@ class Database:
         if table_name not in self.table_names:
             raise ValueError("`{}` does not exist.".format(table_name))
         if len(query) != 3:
-            raise PacketError("Invalid number of query arguments: expected 3 not {}".format(len(query)))
-        attr_name, operator, comparison = query
-        if type(attr_name) is not str:
-            raise ValueError("`{}` is not a string.")
+            raise ValueError("Invalid number of query arguments: expected 3 not {}".format(len(query)))
+        column_name, operator, comparison = query
+        if type(column_name) is not str:
+            raise ValueError("`{}` is not a string.".format(column_name))
+        if type(operator) is not int:
+            raise ValueError("`{}` is not a valid operator.".format(operator))
         if not (1 <= operator <= 6):
             raise ValueError("Invalid operator value: {}".format(operator))
-        if type(value) not in (str, int, float):
+        if type(comparison) not in (str, int, float):
             raise ValueError("Invalid comparison value: {}".format(comparison))
 
-        # Send message
-        table_id = self.get_table_id(table_name)
-        raise NotImplementedError("Column number needs to be obtained, order!?")
-        # Also need to check type of value...
-        column_id = None
-        msg = self.REQUEST("SCAN", table_id) + self.COLUMN(column_id) \
-            + self.OPERATOR(operator) + self.VALUE(query)
-        self.send(msg)
+        # Get type of column and check
+        column_id, column_type = self.get_column_id_type(table_name, column_name)
+        # Operator only EQ or NE for foreign
+        if io.is_foreign(column_type):
+            if operator not in (OP_EQ, OP_NE):
+                raise ValueError("Comparison of foreign keys support only EQ or NE.")
+        try:
+            value = io.VALUE(comparison, column_type) # eager type checking
+        except ValueError as e:
+            raise e
 
-        # Get response
-        response = self.receive()
-        code = self.read_response_code(response[:4])
+
+        # Parse message
+        table_id = self.get_table_id(table_name)
+        msg = io.REQUEST("SCAN", table_id) + io.COLUMN(column_id) \
+            + io.OPERATOR(operator) + value
+
+        # Parse response
+        reply = self.send_receive(msg)
+        code, reply = io.next_response(reply)
         if code != "OK":
             if code == "NOT_FOUND":
                 raise ObjectDoesNotExist("Specified row does not exist.")
@@ -235,145 +251,45 @@ class Database:
                 raise PacketError("`{}` raised.".format(code))
             else:
                 raise RuntimeError("Unexpected code: `{}`".format(code))
-
-        count = self.read_int(response[4:8])
-        response = response[8:]
-        row_ids = []
-        for i in range(count):
-            row_ids.append(self.read_int(response[:4]))
-            response = response[4:]
-        return row_ids
+        return io.read_ids(reply)
 
     def get_table_id(self, table_name):
         return self.table_names.index(table_name)
 
-    def get_table_argc(self, table_name):
-        return len(self.tables[self.get_table_id(table_name)][1])
+    def get_table_args(self, table_name):
+        return self.tables[self.get_table_id(table_name)][1]
 
-    # primitives
+    def get_table_argc(self, table_name):
+        return len(self.get_table_args(table_name))
+
+    def get_table_arg_types(self, table_name):
+        return list(map(lambda v: v[1], self.get_table_args(table_name)))
+
+    def get_column_id_type(self, table_name, column_name):
+        if column_name == "id": return 0, "" # foreign key, id
+        args = self.get_table_args(table_name) # 0-indexed
+        column_names = list(map(lambda v: v[0], args)) # 0-indexed
+        if column_name not in column_names:
+            raise ValueError("Column `{}` does not exist.".format(column_name))
+        arg_id = column_names.index(column_name)
+        column_type = args[arg_id][1]
+        column_id = arg_id + 1 # 1-indexed
+        return column_id, column_type
+
     def send(self, msg):
         self.socket.sendall(msg)
 
     def receive(self):
-        return self.socket.recv(1024)
+        # To receive unknown stream, we know easydb returns are 4-byte aligned
+        # we increase buffer size by 1, and if maxed out => stream not terminated
+        reply = self.socket.recv(ISTREAM_BUFFER + 1)
+        if len(reply) == ISTREAM_BUFFER + 1:
+            while True:
+                part = self.socket.recv(ISTREAM_BUFFER)
+                reply += part
+                if len(part) != ISTREAM_BUFFER: break
+        return reply
 
-    def read_response_code(self, code):
-        code = struct.unpack(">i", code)[0]
-        return_vals = [None, "OK", "NOT_FOUND", "BAD_TABLE", "BAD_QUERY",
-                       "TXN_ABORT", "BAD_VALUE", "BAD_ROW", "BAD_REQUEST",
-                       "BAD_FOREIGN", "UNIMPLEMENTED"]
-        return return_vals[code]
-
-    def read_key(self, response):
-        return struct.unpack(">qq", response)
-
-    def read_version(self, response):
-        return struct.unpack(">q", response)
-
-    def read_row(self, response):
-        count = self.read_int(response[:4])
-        response = response[4:]
-        values = []
-        for i in range(count):
-            val_type = self.read_int(response[:4])
-            size = self.read_int(response[4:8])
-            value_b = response[8:8+size]
-            response = response[8+size:]
-            if val_type == 1:
-                value = self.read_int(value_b)
-            elif val_type == 2:
-                value = self.read_float(value_b)
-            elif val_type == 3:
-                value = self.read_string(value_b, size)
-            elif val_type == 4:
-                value = self.read_long(value_b)
-            values.append(value)
-        return tuple(values)
-
-    def read_int(self, response):
-        return struct.unpack(">i", response)
-
-    def read_long(self, response):
-        return struct.unpack(">q", response)
-
-    def read_float(self, response):
-        return struct.unpack(">f", response)
-
-    def read_string(self, response, size):
-        return struct.unpack(">{}s".format(size), response)
-
-    def REQUEST(self, command_str, table_num):
-        commands = [None, "INSERT", "UPDATE", "DROP", "GET", "SCAN", "EXIT"]
-        assert type(table_num) is int
-        assert -2147483648 <= table_num <= 2147483647
-        assert command_str in commands
-        return struct.pack(">ii", commands.index(command_str), table_num)
-
-    def KEY(self, id, version):
-        return struct.pack(">qq", id, version)
-
-    def VALUE(self, value, attr_type):
-        if type(attr_type) is str:
-            return struct.pack(">iiq", 1, 8, value) # row id
-        if attr_type is int:
-            if type(value) is not int:
-                raise ValueError("`{}` is not an integer.".format(value))
-            return struct.pack(">iii", 1, 8, value)
-        if attr_type is float:
-            if type(value) not in (int, float):
-                raise ValueError("`{}` is not a float.".format(value))
-            return struct.pack(">iif", 2, 8, value)
-        if attr_type is str:
-            if type(value) is not str:
-                raise ValueError("`{}` is not a string.".format(value))
-            buffer_size = len(value)
-            if buffer_size % 4 != 0:
-                buffer_size = 4*(buffer_size//4 + 1) # 4-byte aligned
-            return struct.pack(">ii{}s".format(buffer_size),
-                               3, buffer_size, value.encode("ascii"))
-        raise RuntimeError("Unexpected attr_type: `{}`".format(attr_type))
-
-    def VALUE(self, value, foreign=False):
-        if foreign:
-            return struct.pack(">iiq", 1, 8, value) # row id
-        if type(value) is int:
-            if type(value) is not int:
-                raise ValueError("`{}` is not an integer.".format(value))
-            return struct.pack(">iii", 1, 8, value)
-        if type(value) is float:
-            if type(value) not in (int, float):
-                raise ValueError("`{}` is not a float.".format(value))
-            return struct.pack(">iif", 2, 8, value)
-        if type(value) is str:
-            if type(value) is not str:
-                raise ValueError("`{}` is not a string.".format(value))
-            buffer_size = len(value)
-            if buffer_size % 4 != 0:
-                buffer_size = 4*(buffer_size//4 + 1) # 4-byte aligned
-            return struct.pack(">ii{}s".format(buffer_size),
-                               3, buffer_size, value.encode("ascii"))
-        raise RuntimeError("Unexpected attr_type: `{}`".format(type(value)))
-
-    def ROW(self, values, val_types):
-        msg = struct.pack(">i", len(values))
-        for value, val_types in list(zip(values, val_types)):
-            msg += self.VALUE(value, val_types)
-        return msg
-
-    def ROW(self, values):
-        msg = struct.pack(">i", len(values))
-        for value in values:
-            msg += self.VALUE(value)
-        return msg
-
-    def ID(self, pk):
-        return struct.pack(">q", pk)
-
-    def VERSION(self, ver): # alias
-        return struct.pack(">q", ver)
-
-    def COLUMN(self, value):
-        return struct.pack(">i", value)
-
-    def OPERATOR(self, value):
-        return struct.pack(">i", value)
+    def send_receive(self, msg):
+        self.send(msg)
+        return self.receive()

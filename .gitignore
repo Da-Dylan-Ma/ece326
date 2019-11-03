@@ -3,6 +3,7 @@
 *.log
 *.mk
 *.exe
+*nopush*
 
 # Coverage reports
 htmlcov/
