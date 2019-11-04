@@ -215,31 +215,6 @@ class Test_init(unittest.TestCase):
                             ("type", str),
                             ("balance", float))
                ))
-        tb2 = (("User", (("firstName", str),
-                         ("lastName", str),
-                         ("height", float),
-                         ("age", int),
-                         ("account", "Account"))
-               ),
-               ("Cash", (("value", float),
-                         ("currency", str))
-               ),
-               ("Account", (("user", "User"),
-                            ("type", str),
-                            ("balance", "Cash"))
-               ))
-        tb3 = (("User", (("firstName", str),
-                         ("lastName", str),
-                         ("height", float),
-                         ("age", int))
-               ),
-               ("Cash", (("value", float),
-                         ("currency", str))
-               ),
-               ("Account", (("user", "User"),
-                            ("type", str),
-                            ("balance", "Cash"))
-               ))
         tb4 = (("User", (("firstName", str),
                          ("lastName", str),
                          ("height", float),
@@ -255,46 +230,19 @@ class Test_init(unittest.TestCase):
                ))
 
         self.db1 = orm.easydb.Database(tb1)
-        # self.db2 = orm.easydb.Database(tb2) # raises ValueError
-        self.db3 = orm.easydb.Database(tb3)
         self.db4 = orm.easydb.Database(tb4)
 
     def test_setup(self):
-        # Note that current implementation does not care if classes
-        # in modules are topologically ordered. Is there a need to?
-        import schema_tb1
-        import schema_tb3
-        import schema_tb4
-
-        #self.assertEqual(self.db1.tables, orm.setup("easydb", schema_tb1).tables)
-        #self.assertEqual(self.db3.tables, orm.setup("easydb", schema_tb3).tables)
-        #self.assertEqual(self.db4.tables, orm.setup("easydb", schema_tb4).tables)
-
-        #import schema_tb2 # interestingly, importing schema_tb2 will already raise error
-        # self.assertRaises(ValueError, orm.setup, "easydb", testcases.schema_tb1)
+        return NotImplemented
 
     def test_export(self):
-        # Difficult to test, since ordering is not preserved.
-        # Should it, based on the module ordering?
-        # Test by eye please
         with open("default.txt", "r") as f:
             ans = f.read()
         test = orm.export("easydb", schema)
-        #self.assertEqual(ans, test)
+        self.assertEqual(ans, test)
 
 
 if __name__ == "__main__":
-    # check if server is already up
     unittest.main()
-    #db = orm.setup("easydb", schema)
-    db = orm.easydb.Database((("User", (("firstName", str),    # (column_name, type)
-                         ("lastName", str),
-                         ("height", float),
-                         ("age", int))
-               ),
-               ("Account", (("user", "User"),   # (column_name, table_reference)
-                            ("type", str),
-                            ("balance", float))
-               )))
+    db = orm.setup("easydb", schema)
     db.connect("127.0.0.1", 8080)
-    scanmsg = b'\x00\x00\x00\x05\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x03\x00\x00\x00\x04Jay\x00'

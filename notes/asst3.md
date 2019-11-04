@@ -2,10 +2,10 @@
 
 ## Assignment requirements
 
-1. `easydb.py`: Implement Database class for communication
-2. `table.py`: Implement Table class and associated metaclass
-3. `fields.py`: Implement types supported by ORM layer
-4. `__init__.py`: Implement `setup` and `export` functions
+1. `easydb.py`: Implement Database class for communication (done)
+2. `table.py`: Implement Table class and associated metaclass (methods not done)
+3. `fields.py`: Implement types supported by ORM layer (special fields not done)
+4. `__init__.py`: Implement `setup` and `export` functions (done)
 
 See the section on [Solution requirements](http://fs.csl.toronto.edu/~sunk/asst3.html#specification) for detailed writeup. Summary of details below.
 
