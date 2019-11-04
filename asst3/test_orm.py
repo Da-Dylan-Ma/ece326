@@ -241,6 +241,11 @@ class Test_init(unittest.TestCase):
         test = orm.export("easydb", schema)
         self.assertEqual(ans, test)
 
+class Test_table(unittest.TestCase):
+
+    def test_user(self):
+        db = orm.setup("easydb", schema)
+        u = orm.table.User(db, firstName="John", lastName="Doe", height=170, age=20)
 
 if __name__ == "__main__":
     unittest.main()

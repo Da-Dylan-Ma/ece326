@@ -39,6 +39,7 @@ class MetaTable(type):
             MetaTable.table_register.append(cls) # add to register
             MetaTable.table_name_register.append(cls_name)
             cls._register = MetaTable.table_register
+        globals()[cls_name] = cls # define class in global namespace
         return cls
 
     # Returns an existing object from the table, if it exists.
