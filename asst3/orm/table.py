@@ -9,7 +9,6 @@ import orm.easydb
 from collections import OrderedDict
 from orm.exceptions import InvalidReference
 from orm.fields import Integer, Float, String, Foreign, DateTime, Coordinate, datetime, Field
-from collections import defaultdict
 
 print("WARNING: Does not work with concurrent database accesses, due to nature of\n",
       "        globals/class creation. Unit testing difficult due state changes.")
@@ -107,8 +106,6 @@ class MetaTable(type):
 # table class
 class Table(object, metaclass=MetaTable):
 
-    _counter = defaultdict(lambda: 0) # deprecated
-
     # constructor
     def __init__(self, db, **kwargs):
         self.pk = None # ID (primary key)
@@ -167,7 +164,3 @@ class Table(object, metaclass=MetaTable):
         self.db.drop(self._table_name, self.pk)
         self.pk = None
         self.version = None
-
-    def _equal(self, oth):
-        # for posterity, cannot override __eq__ else affect hashing in Field
-        return self._values() == oth._values()

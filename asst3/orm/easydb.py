@@ -185,7 +185,6 @@ class Database:
 
         # Parse message
         table_id = self.get_table_id(table_name)
-        msg = io.ID(pk)
         msg = io.REQUEST("GET", table_id) + io.ID(pk)
 
         # Parse response
