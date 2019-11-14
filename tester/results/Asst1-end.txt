@@ -1,0 +1,28 @@
+Running tests for Lab 1
+Output being sent to tester.log, tester.out
+Running: /nfs/ug/cad/cad2/ece326f/tester/scripts/lab1-01-arguments.py 
+arguments test
+Mark for arguments test is 15 out of 15
+PASS
+
+Running: /nfs/ug/cad/cad2/ece326f/tester/scripts/lab1-02-manual.py 
+manual test
+Mark for manual test is 40 out of 40
+PASS
+
+Running: /nfs/ug/cad/cad2/ece326f/tester/scripts/lab1-03-automatic.py 
+auto test
+Mark for auto test is 20 out of 20
+PASS
+
+Running: /nfs/ug/cad/cad2/ece326f/tester/scripts/lab1-04-performance.py 
+performance test
+Mark for performance test is 20 out of 20
+PASS
+
+Running: /nfs/ug/cad/cad2/ece326f/tester/scripts/lab1-05-memory.py 
+memory test
+Mark for memory test is 5 out of 5
+PASS
+
+You have received 100 marks out of a total of 100 marks.
