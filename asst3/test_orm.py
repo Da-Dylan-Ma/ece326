@@ -7,6 +7,7 @@ import unittest
 import orm
 import schema
 import struct
+from schema import *
 
 class Test_easydb_setup(unittest.TestCase):
 
@@ -243,9 +244,80 @@ class Test_init(unittest.TestCase):
 
 class Test_table(unittest.TestCase):
 
-    def test_user(self):
-        db = orm.setup("easydb", schema)
-        u = orm.table.User(db, firstName="John", lastName="Doe", height=170, age=20)
+    def setUp(self):
+        self.db = orm.setup("easydb", schema)
+        self.db.connect("127.0.0.1", 8080)
+
+    def tearDown(self):
+        self.db.close()
+
+    def test_default(self):
+        # User: basic table test
+        joe = User(self.db, firstName="Joe", lastName="Harris", age=32)
+        self.assertEqual(joe.pk, None)
+        self.assertEqual(joe.height, 0.)
+        joe.lastName = "Smith"
+        joe.save()
+        self.assertNotEqual(joe.pk, None)            # 2 (the id of the object)
+        old_joe_pk = joe.pk
+        self.assertEqual(joe.version, 1)      # 1 (the version of the object)
+        joe.age = 33
+        joe.save(atomic=False)    # disable atomic update for this call to easydb.update
+        self.assertEqual(joe.version, 2)               # 2 (new version of the object)
+        joe.age = 34
+        joe.save()                # this will call easydb.update, which may raise TransactionAbort
+        joe.delete()              # deletes the row from the database
+        self.assertEqual(joe.pk, None)            # True
+        joe.save()                #
+        self.assertNotEqual(joe.pk, old_joe_pk)
+
+        # Account: foreign key test
+        acc = Account(self.db, user=joe)
+        acc.save()
+
+    def test_get(self):
+        joe_michael = User(self.db, firstName="Joe", lastName="Michael", age=32)
+        joe_michael.save()
+        joe_michael_2 = User.get(self.db, joe_michael.pk)
+        self.assertEqual(joe_michael.pk, joe_michael_2.pk)
+        self.assertEqual(joe_michael.version, joe_michael_2.version)
+        self.assertEqual(joe_michael.lastName, joe_michael_2.lastName)
+
+    def test_filter(self):
+        # Equality operator
+        joe_objs = User.filter(self.db, firstName="Joe")
+        joe_michael = User(self.db, firstName="Joe", lastName="Michael", age=32)
+        joe_michael.save()
+        more_joe_objs = User.filter(self.db, firstName="Joe")
+        self.assertEqual(len(joe_objs) + 1, len(more_joe_objs))
+
+        # Other operators
+        User.filter(self.db, firstName__gt="J")
+        User.filter(self.db, firstName__lt="J")
+        User.filter(self.db, firstName__ne="Joe")
+        User.filter(self.db, age__gt=33)
+
+        # Add Account tests
+        joe_michael = User(self.db, firstName="Joe", lastName="Michael", age=32)
+        joe_michael.save()
+        acc = Account(self.db, user=joe_michael)
+        acc.save()
+        results_1 = Account.filter(self.db, user=joe_michael)
+        results_2 = Account.filter(self.db, user=joe_michael.pk)
+        self.assertEqual(results_1[0].pk, results_2[0].pk)
+
+    def test_count(self):
+        # TODO: Add exception handling
+        User.count(self.db, firstName__ne="Joe")
+        User.count(self.db, firstName="Joe")
+
+    def test_cascade_save(self):
+        greg = User(self.db, firstName="Greg", lastName="Russell", age=27)
+        account = Account(self.db, user=greg, type="Chequing", balance=100.0)
+        account.save()  # will save 'greg' first before saving 'account'
+        saving = Account(self.db, user=greg, type="Savings", balance=200.0)
+        saving.save()   # will not save 'greg' first since it already exists in database
+
 
 if __name__ == "__main__":
     unittest.main()

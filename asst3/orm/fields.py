@@ -21,16 +21,18 @@ class Field:
         Field._values[self] = {}
 
     def __get__(self, obj, objtype=None):
-        return Field._values[self][obj] 
+        return Field._values[self][obj]
 
     def __set__(self, obj, value):
-        if not self.blank and value is None:
+        if not self.blank and value is None and self.default is None: # reject blank entries\
             raise AttributeError("Field cannot be blank.")
-        self.type_check(value)
-        if self.choices:
-            if value not in self.choices:
-                raise ValueError("`{}` is not an allowed value.".format(value))
+        if value is None: # set as default value if none provided
+            value = self.default
+        self.type_check(value) # sorry for calling static methods like that :>
+        if self.choices and value not in self.choices:
+            raise ValueError("`{}` is not an allowed value.".format(value))
         Field._values[self][obj] = value
+
 
     def __delete__(self, obj):
         if not self.blank:
@@ -50,7 +52,7 @@ class Integer(Field):
     def type_check(value):
         if type(value) is not int:
             raise TypeError("`{}` is not an integer.".format(value))
-        
+
 # FLOAT TYPE
 class Float(Field):
     def __init__(self, blank=False, default=0., choices=()):
@@ -77,9 +79,8 @@ class Foreign(Field): # CHANGE ME
         super().__init__(blank)
         self.table = table
 
-    @staticmethod
-    def type_check(value):
-        if type(value) is not int or value <= 0:
+    def type_check(self, value):
+        if type(value) is not self.table:
             raise TypeError("`{}` is not a valid foreign key reference.".format(value))
 
 # DATETIME TYPE
