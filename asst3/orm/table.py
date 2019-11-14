@@ -4,14 +4,26 @@
 #
 # Definition for an ORM database table and its metaclass
 #
+# IMPORTANT NOTICE:
+# - Very hackish nature of Coordinate. Suggest to formalize by specifying number
+#   of DB fields required per field, and the parser for respective fields,
+#   within the orm.fields classes themselves.
 
 import orm.easydb
 from collections import OrderedDict
 from orm.exceptions import InvalidReference
 from orm.fields import Integer, Float, String, Foreign, DateTime, Coordinate, datetime, Field
 
-print("WARNING: Does not work with concurrent database accesses, due to nature of\n",
-      "        globals/class creation. Unit testing difficult due state changes.")
+# print("WARNING: Does not work with concurrent database accesses, due to nature of\n",
+#       "        globals/class creation. Unit testing difficult due state changes.")
+
+def flatten(lst):
+    # simple flattener, cannot handle cyclical lists
+    if len(lst) == 0: return []
+    if type(lst[0]) in (tuple, list):
+        return flatten(lst[0]) + flatten(lst[1:])
+    return [lst[0]] + flatten(lst[1:])
+
 
 # metaclass of table
 # used to implement methods only for the class itself?
@@ -47,10 +59,16 @@ class MetaTable(type):
     #   pk: int, primary key (ID)
     def get(cls, db, pk):
         values, version = db.get(cls.__name__, pk)
-
-        field_names = tuple(zip(*cls._fields))[0]
-        assert(len(field_names) == len(values))
-        kwargs = dict((field_names[i], values[i]) for i in range(len(values)))
+        kwargs = {}
+        values_idx = 0
+        for field_name, obj in cls._fields:
+            if type(obj) is orm.fields.Coordinate:
+                kwargs[field_name] = (values[values_idx], values[values_idx+1])
+                values_idx += 2
+            else:
+                kwargs[field_name] = values[values_idx]
+                values_idx += 1
+        assert values_idx == len(values) # list exhausted
         kwargs["pk"] = pk
         kwargs["version"] = version
         return cls(db, **kwargs)
@@ -73,9 +91,23 @@ class MetaTable(type):
                 column_name = column
                 op = orm.easydb.OP_EQ
 
+
         # Auto unboxing of object pk / datetime
         if isinstance(value, Table): value = value.pk
         if isinstance(value, datetime): value = value.timestamp()
+        if isinstance(value, tuple) or isinstance(value, list):
+            # Trust in the fact that only Coordinate uses tuple :>
+            assert len(value) == 2
+            assert op in (orm.easydb.OP_EQ, orm.easydb.OP_NE)
+            if op == orm.easydb.OP_EQ:
+                ids_1 = set(db.scan(cls.__name__, (column_name+"_lat", op, value[0])))
+                ids_2 = set(db.scan(cls.__name__, (column_name+"_long", op, value[1])))
+                ids = list(sorted(list(ids_1.intersection(ids_2))))
+            elif op == orm.easydb.OP_NE: # different logic
+                ids_1 = set(db.scan(cls.__name__, (column_name+"_lat", op, value[0])))
+                ids_2 = set(db.scan(cls.__name__, (column_name+"_long", op, value[1])))
+                ids = list(sorted(list(ids_1.union(ids_2))))
+            return [cls.get(db, obj_id) for obj_id in ids]
 
         ids = db.scan(cls.__name__, (column_name, op, value))
         return [cls.get(db, obj_id) for obj_id in ids]
@@ -99,6 +131,19 @@ class MetaTable(type):
         # Auto unboxing of object pk / datetime
         if isinstance(value, Table): value = value.pk
         if isinstance(value, datetime): value = value.timestamp()
+        if isinstance(value, tuple) or isinstance(value, list):
+            # Trust in the fact that only Coordinate uses tuple :>
+            assert len(value) == 2
+            assert op in (orm.easydb.OP_EQ, orm.easydb.OP_NE)
+            if op == orm.easydb.OP_EQ:
+                ids_1 = set(db.scan(cls.__name__, (column_name+"_lat", op, value[0])))
+                ids_2 = set(db.scan(cls.__name__, (column_name+"_long", op, value[1])))
+                ids = list(sorted(list(ids_1.intersection(ids_2))))
+            elif op == orm.easydb.OP_NE: # different logic
+                ids_1 = set(db.scan(cls.__name__, (column_name+"_lat", op, value[0])))
+                ids_2 = set(db.scan(cls.__name__, (column_name+"_long", op, value[1])))
+                ids = list(sorted(list(ids_1.union(ids_2))))
+            return len(ids)
 
         ids = db.scan(cls.__name__, (column_name, op, value))
         return len(ids)
@@ -120,7 +165,7 @@ class Table(object, metaclass=MetaTable):
         bad_fields = set(kwargs)-set(dict(fields))-set(["pk","version"])
         if len(bad_fields) != 0:
             raise AttributeError("Unknown attributes {} found.".format(bad_fields))
-        self._field_names = tuple(zip(*fields))[0]
+        self._field_names = tuple(zip(*fields))[0] # ORM
 
         # Type conversion occurs here, i.e. Foreign, Datetime, Coordinate
         # when specifying as alternative form, e.g. user=2 instead of user='joe'
@@ -132,17 +177,12 @@ class Table(object, metaclass=MetaTable):
                 if type(obj) is orm.fields.DateTime:
                     if type(kwargs[k]) is float: # parse from float to datetime
                         kwargs[k] = datetime.fromtimestamp(kwargs[k])
-                # if type(obj) is orm.fields.Coordinate:
-                #     if type(kwargs[k]) in (list, tuple):
-                #         assert len(kwargs[k]) == 2
-                #         assert type(kwargs[k][0]) in (int, float)
-                #         assert type(kwargs[k][1]) in (int, float)
-                #         # no type conversion, already 2-tuple
                 setattr(self, k, kwargs[k])
             else:
                 setattr(self, k, None)
 
     def _values(self):
+        # Parser for native DB
         # Need to parse foreign keys into database friendly int values
         values = list(map(lambda field: getattr(self, field), self._field_names))
         new_values = []
@@ -152,12 +192,12 @@ class Table(object, metaclass=MetaTable):
                 new_values.append(value.pk)
             elif type(value) is datetime:
                 new_values.append(value.timestamp()) # convert to POSIX timestamp
-            # elif type(value) is orm.fields.Coordinate:
-            #     new_values.append(value[0])
-            #     new_values.append(value[1])
             else:
                 new_values.append(value)
-        return new_values
+        # hackish, but we rely on the fact that our implementation
+        # uses continguous _lat and _long for storage, so simply flatten the
+        # ordered list will do.
+        return flatten(new_values)
 
     def _save_subroutine(self, atomic):
         # New entry

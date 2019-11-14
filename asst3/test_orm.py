@@ -319,11 +319,17 @@ class Test_table(unittest.TestCase):
         saving = Account(self.db, user=greg, type="Savings", balance=200.0)
         saving.save()   # will not save 'greg' first since it already exists in database
 
-    # def test_field_coordinate(self):
-    #     ottawa = Capital(location=(45.4215, 75.6972), name="Ottawa")
-    #     ottawa.save()
-    #     ottawa = Capital.get(db, pk=ottawa.pk)
-    #     ottawa = Capital.filter(db, name="Ottawa")[0]
+    def test_field_coordinate(self):
+        ottawa = Capital(self.db, location=(45.4215, 75.6972), name="Ottawa")
+        ottawa.location = (45.4215, 75.6972)
+        ottawa.save()
+        ottawa = Capital.get(self.db, pk=ottawa.pk)
+        ottawa = Capital.filter(self.db, name="Ottawa")[0]
+        ottawa = Capital.filter(self.db, location=(45.4215, 75.6972))[0]
+        # print(ottawa, ottawa.pk, ottawa.name, ottawa.location)
+        # print(Capital.count(self.db, location=(45.4215, 75.6972)))
+        # print(Capital.count(self.db, location__ne=(45.4215, 75.6972)))
+        # print(Capital.count(self.db, location__ne=(45.4285, 75.6972)))
 
     def test_field_datetime(self):
         ece326 = Parade(self.db, location="BA1190", end=datetime(2019, 10, 15, 13))
@@ -332,12 +338,11 @@ class Test_table(unittest.TestCase):
         Parade.get(self.db, ece326.pk)
         Parade.count(self.db, location="BA1109")
         results = Parade.filter(self.db, end__lt=datetime(2019, 10, 15, 14))
-        print(results)
 
 if __name__ == "__main__":
     unittest.main()
     # Update schema
-    with open("default.txt", "w") as f:
-        f.write(orm.export("easydb", schema))
+    # with open("default.txt", "w") as f:
+    #     f.write(orm.export("easydb", schema))
     # db = orm.setup("easydb", schema)
     # db.connect("127.0.0.1", 8080)

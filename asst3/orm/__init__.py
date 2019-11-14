@@ -63,9 +63,9 @@ def module2schema(module):
             elif type(attr) is orm.fields.DateTime:
                 primitive = float # saving as POSIX timestamp
                 types.append((name, primitive))
-            # elif type(attr) is orm.fields.Coordinate:
-            #     types.append(("_lat"+name, float))
-            #     types.append(("_long"+name, float))
+            elif type(attr) is orm.fields.Coordinate:
+                types.append((name+"_lat", float))
+                types.append((name+"_long", float))
             else:
                 primitive = field2type[type(attr)]
                 types.append((name, primitive))

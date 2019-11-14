@@ -97,7 +97,7 @@ class DateTime(Field):
 
 # COORDINATE TYPE
 class Coordinate(Field):
-    implemented = False
+    implemented = True
     def __init__(self, blank=False, default=None, choices=()):
         super().__init__(blank, default, choices)
 
@@ -106,6 +106,8 @@ class Coordinate(Field):
         if type(value) not in (list, tuple) or len(value) != 2:
             raise TypeError("`{}` is not a valid coordinate.".format(value))
         if type(value[0]) not in (int, float) or type(value[1]) not in (int, float):
+            raise TypeError("`{}` are not valid coordinate types.".format(value))
+        if not (-90 <= value[0] <= 90) or not (-180 <= value[1] <= 180):
             raise TypeError("`{}` does not contain valid coordinate values.".format(value))
 
 if __name__ == "__main__":

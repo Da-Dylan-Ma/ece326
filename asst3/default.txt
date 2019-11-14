@@ -11,6 +11,12 @@ Account {
     balance: float;
 }
 
+Capital {
+    location_lat: float;
+    location_long: float;
+    name: string;
+}
+
 Parade {
     location: string;
     start: float;
