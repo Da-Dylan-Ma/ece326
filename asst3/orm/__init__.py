@@ -59,8 +59,15 @@ def module2schema(module):
         for name, attr in cls._fields:
             if type(attr) is orm.Foreign:
                 primitive = attr.table.__name__
+                types.append((name, primitive))
+            elif type(attr) is orm.fields.DateTime:
+                primitive = float # saving as POSIX timestamp
+                types.append((name, primitive))
+            # elif type(attr) is orm.fields.Coordinate:
+            #     types.append(("_lat"+name, float))
+            #     types.append(("_long"+name, float))
             else:
                 primitive = field2type[type(attr)]
-            types.append((name, primitive))
+                types.append((name, primitive))
         schema.append((cls.__name__, tuple(types)))
     return schema

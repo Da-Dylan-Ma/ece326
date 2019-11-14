@@ -24,7 +24,7 @@ class Field:
         return Field._values[self][obj]
 
     def __set__(self, obj, value):
-        if not self.blank and value is None and self.default is None: # reject blank entries\
+        if not self.blank and value is None and self.default is None: # reject blank entries
             raise AttributeError("Field cannot be blank.")
         if value is None: # set as default value if none provided
             value = self.default
@@ -85,13 +85,28 @@ class Foreign(Field): # CHANGE ME
 
 # DATETIME TYPE
 class DateTime(Field):
-    # Implement me.
-    implemented = False
+    implemented = True
+    def __init__(self, blank=False, default=None, choices=()):
+        if default is not None: default = default() # datetime functor
+        super().__init__(blank, default, choices)
+
+    @staticmethod
+    def type_check(value):
+        if type(value) is not datetime:
+            raise TypeError("`{}` is not a datetime.".format(value))
 
 # COORDINATE TYPE
 class Coordinate(Field):
-    # Implement me.
     implemented = False
+    def __init__(self, blank=False, default=None, choices=()):
+        super().__init__(blank, default, choices)
+
+    @staticmethod
+    def type_check(value):
+        if type(value) not in (list, tuple) or len(value) != 2:
+            raise TypeError("`{}` is not a valid coordinate.".format(value))
+        if type(value[0]) not in (int, float) or type(value[1]) not in (int, float):
+            raise TypeError("`{}` does not contain valid coordinate values.".format(value))
 
 if __name__ == "__main__":
     pass

@@ -73,9 +73,9 @@ class MetaTable(type):
                 column_name = column
                 op = orm.easydb.OP_EQ
 
-        # Auto unboxing of object pk
-        if isinstance(value, Table):
-            value = value.pk
+        # Auto unboxing of object pk / datetime
+        if isinstance(value, Table): value = value.pk
+        if isinstance(value, datetime): value = value.timestamp()
 
         ids = db.scan(cls.__name__, (column_name, op, value))
         return [cls.get(db, obj_id) for obj_id in ids]
@@ -96,9 +96,9 @@ class MetaTable(type):
                 column_name = column
                 op = orm.easydb.OP_EQ
 
-        # Auto unboxing of object pk
-        if isinstance(value, Table):
-            value = value.pk
+        # Auto unboxing of object pk / datetime
+        if isinstance(value, Table): value = value.pk
+        if isinstance(value, datetime): value = value.timestamp()
 
         ids = db.scan(cls.__name__, (column_name, op, value))
         return len(ids)
@@ -122,20 +122,42 @@ class Table(object, metaclass=MetaTable):
             raise AttributeError("Unknown attributes {} found.".format(bad_fields))
         self._field_names = tuple(zip(*fields))[0]
 
+        # Type conversion occurs here, i.e. Foreign, Datetime, Coordinate
+        # when specifying as alternative form, e.g. user=2 instead of user='joe'
         for k, obj in fields:
-            if type(obj) is orm.fields.Foreign:
-                if type(kwargs[k]) is int: # parse from int to foreign key
-                    kwargs[k] = obj.table.get(self.db, kwargs[k]) # recursive
-            setattr(self, k, kwargs[k] if k in kwargs else None)
+            if k in kwargs:
+                if type(obj) is orm.fields.Foreign:
+                    if type(kwargs[k]) is int: # parse from int to foreign key
+                        kwargs[k] = obj.table.get(self.db, kwargs[k]) # recursive
+                if type(obj) is orm.fields.DateTime:
+                    if type(kwargs[k]) is float: # parse from float to datetime
+                        kwargs[k] = datetime.fromtimestamp(kwargs[k])
+                # if type(obj) is orm.fields.Coordinate:
+                #     if type(kwargs[k]) in (list, tuple):
+                #         assert len(kwargs[k]) == 2
+                #         assert type(kwargs[k][0]) in (int, float)
+                #         assert type(kwargs[k][1]) in (int, float)
+                #         # no type conversion, already 2-tuple
+                setattr(self, k, kwargs[k])
+            else:
+                setattr(self, k, None)
 
     def _values(self):
         # Need to parse foreign keys into database friendly int values
         values = list(map(lambda field: getattr(self, field), self._field_names))
+        new_values = []
         for i in range(len(values)):
             value = values[i]
             if isinstance(value, Table): # foreign key parsing
-                values[i] = value.pk
-        return values
+                new_values.append(value.pk)
+            elif type(value) is datetime:
+                new_values.append(value.timestamp()) # convert to POSIX timestamp
+            # elif type(value) is orm.fields.Coordinate:
+            #     new_values.append(value[0])
+            #     new_values.append(value[1])
+            else:
+                new_values.append(value)
+        return new_values
 
     def _save_subroutine(self, atomic):
         # New entry

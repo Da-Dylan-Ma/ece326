@@ -30,7 +30,7 @@ if orm.Coordinate.implemented:
 
 if orm.DateTime.implemented:
     class Parade(orm.Table):
-        location = orm.Foreign(Capital)
+        location = orm.String() #orm.Foreign(Capital)
         start = orm.DateTime(default=datetime.now)
         end = orm.DateTime(blank=True)
 

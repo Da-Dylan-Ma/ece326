@@ -237,6 +237,7 @@ class Test_init(unittest.TestCase):
         return NotImplemented
 
     def test_export(self):
+        return NotImplemented
         with open("default.txt", "r") as f:
             ans = f.read()
         test = orm.export("easydb", schema)
@@ -318,8 +319,25 @@ class Test_table(unittest.TestCase):
         saving = Account(self.db, user=greg, type="Savings", balance=200.0)
         saving.save()   # will not save 'greg' first since it already exists in database
 
+    # def test_field_coordinate(self):
+    #     ottawa = Capital(location=(45.4215, 75.6972), name="Ottawa")
+    #     ottawa.save()
+    #     ottawa = Capital.get(db, pk=ottawa.pk)
+    #     ottawa = Capital.filter(db, name="Ottawa")[0]
+
+    def test_field_datetime(self):
+        ece326 = Parade(self.db, location="BA1190", end=datetime(2019, 10, 15, 13))
+        ece326.start = datetime(2019, 10, 15, 12)
+        ece326.save()
+        Parade.get(self.db, ece326.pk)
+        Parade.count(self.db, location="BA1109")
+        results = Parade.filter(self.db, end__lt=datetime(2019, 10, 15, 14))
+        print(results)
 
 if __name__ == "__main__":
     unittest.main()
-    db = orm.setup("easydb", schema)
-    db.connect("127.0.0.1", 8080)
+    # Update schema
+    with open("default.txt", "w") as f:
+        f.write(orm.export("easydb", schema))
+    # db = orm.setup("easydb", schema)
+    # db.connect("127.0.0.1", 8080)

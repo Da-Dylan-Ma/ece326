@@ -10,3 +10,9 @@ Account {
     type: string;
     balance: float;
 }
+
+Parade {
+    location: string;
+    start: float;
+    end: float;
+}
