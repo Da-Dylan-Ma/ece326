@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # manual test for assignment 1
 #
@@ -9,10 +9,10 @@ import tester
 
 OPTIONS = [
     ("S", "Stand \(S\)"),
-	("H", "Hit \(H\)"),
-	("D", "Double \(D\)"),
-	("P", "Split \(P\)"),
-	("R", "Surrender \(R\)"),
+    ("H", "Hit \(H\)"),
+    ("D", "Double \(D\)"),
+    ("P", "Split \(P\)"),
+    ("R", "Surrender \(R\)"),
 ]
 
 def action(test, ops, cmd, mark=0):
@@ -131,5 +131,5 @@ def main():
     prompt(test, 'Q')
     
 if __name__ == '__main__':
-	main()
+    main()
     

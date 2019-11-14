@@ -126,17 +126,17 @@ asst_cloner() {
     NR="$1"
     GROUP="$2"
 
-    git archive --remote ${GIT_REP}/${PREFIX}-${GROUP}/${CLASS} Asst${NR}-end | tar xf -
+    # get the student files from their git repository
+    FILES=$(eval echo \$FILES_$NR)
+    DIR=$(eval echo \$DIR_$NR)
+    FILES=$(eval echo "$FILES" | sed "s|[^ ]* *|$DIR/&|g")
+
+    git archive --remote ${GIT_REP}/${PREFIX}-${GROUP}/${CLASS}/ Asst${NR}-end ${DIR} | tar xf -
     # make sure that the checkout is successful
     if [ $? -ne 0 ]; then
         echo "git checkout was not successful" 1>&2;
         return 1;
     fi
-    
-    # get the student files from their git repository
-    FILES=$(eval echo \$FILES_$NR)
-    DIR=$(eval echo \$DIR_$NR)
-    FILES=$(eval echo "$FILES" | sed "s|[^ ]* *|$DIR/&|g")
 
     # get the original source code
     SRC=$(eval echo \$SRC_$NR)

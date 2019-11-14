@@ -30,8 +30,8 @@ DIR_4=asst4
 # Files to restore from starter code
 FILES_1="main.cpp shoe.cpp shoe.h config.h player.h Makefile"
 FILES_2="main.py"
-FILES_3=""
-FILES_4=""
+FILES_3="main.py schema.py"
+FILES_4="main.rs schema.rs packet.rs"
 
 # Marks for each lab
 # Update these marks if the scripts are updated

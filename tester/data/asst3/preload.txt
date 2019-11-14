@@ -1,0 +1,7 @@
+1	James	Hartley	180.3	38
+1	Bob	Hington	178.2	48
+1	Alice	Harris	163.2	21
+2	1	Normal	6500.5
+2	3 	Normal	30.2 
+2	3	Normal	100.5
+2	3	Normal	73.1

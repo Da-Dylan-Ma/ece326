@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # memory leak test for assignment 1
 #
@@ -21,7 +21,7 @@ def exit_on_leak(test, regex):
 
 def main():
     test = tester.Core('memory test', 5)
-    path = tester.datapath("wizard.txt", 'asst1') 
+    path = tester.datapath("wizard.txt", 'asst1')
     test.start_program('valgrind ./asst1 -s -i %d -a %s %d'%(4, path, 10000),
         timeout=10)
     
@@ -29,7 +29,7 @@ def main():
     find_or_exit(test, 'Final Balance: \+\$1103\.00')
     find_or_exit(test, 'Player Advantage: 11\.03\%')
     
-    test.set_timeout(1) 
+    test.set_timeout(1)
     exit_on_leak(test, 'definitely lost: .+? bytes in (\d+) blocks')
     exit_on_leak(test, 'indirectly lost: .+? bytes in (\d+) blocks')
     exit_on_leak(test, 'possibly lost: .+? bytes in (\d+) blocks')
@@ -38,5 +38,5 @@ def main():
     test.add_mark(2)
     
 if __name__ == '__main__':
-	main()
+    main()
     

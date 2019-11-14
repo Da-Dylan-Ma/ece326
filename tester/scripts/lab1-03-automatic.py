@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # auto test for assignment 1
 #
@@ -7,7 +7,7 @@
 
 import tester
 
-TEST_CASES = [    
+TEST_CASES = [
     # assume 10 comes next (surrender if will lose under the assumption)
     #
     ("autoshoe1.txt", "only10.txt", 5, [
@@ -21,7 +21,7 @@ TEST_CASES = [
         'Hand 1: A Q \(soft 21\)',
         'Hand 2: A 3 \(soft 14\)',
         'Final Balance: \+\$2\.50',
-    ]),  
+    ]),
     ("autoshoe2.txt", "mimic.txt", 8, [
         'Hand 1: 9 9 \(18\) SURRENDER',
         'Hand 1: A A K K \(bust\)',
@@ -33,12 +33,12 @@ TEST_CASES = [
         'Hand 1: A 9 2 \(12\) DOUBLE',
         'Hand 1: K 9 \(19\) SURRENDER',
         'Final Balance: \$0\.00',
-    ]),  
+    ]),
 ]
 
 def run_test_case(test, case):
-    shoe = tester.datapath(case[0], 'asst1') 
-    strat = tester.datapath(case[1], 'asst1') 
+    shoe = tester.datapath(case[0], 'asst1')
+    strat = tester.datapath(case[1], 'asst1')
     test.start_program('./asst1 -f %s -a %s %d'%(shoe, strat, case[2]))
     
     for output in case[-1]:
@@ -51,5 +51,5 @@ def main():
         run_test_case(test, testcase)
     
 if __name__ == '__main__':
-	main()
+    main()
     
