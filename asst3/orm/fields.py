@@ -15,6 +15,12 @@ class Field:
     _values = {}
 
     def __init__(self, blank=True, default=None, choices=()):
+        # Error checking
+        if default is not None:
+            self.type_check(default)
+        for choice in choices:
+            self.type_check(choice)
+
         self.blank = blank
         self.choices = choices
         self.default = default
@@ -24,11 +30,17 @@ class Field:
         return Field._values[self][obj]
 
     def __set__(self, obj, value):
-        if not self.blank and value is None and self.default is None: # reject blank entries
-            raise AttributeError("Field cannot be blank.")
-        if value is None: # set as default value if none provided
-            value = self.default
+        # initial setup
+        if obj not in Field._values[self]:
+            if not self.blank and value is None and self.default is None: # reject blank entries
+                raise AttributeError("Field cannot be blank.")
+            if value is None: # set as default value if none provided
+                value = self.default
+        else:
+            if value is None:
+                raise AttributeError("Field cannot be blank.")
         self.type_check(value) # sorry for calling static methods like that :>
+        value = self.parser(value)
         if self.choices and value not in self.choices:
             raise ValueError("`{}` is not an allowed value.".format(value))
         Field._values[self][obj] = value
@@ -42,6 +54,9 @@ class Field:
     @staticmethod
     def type_check(value):
         pass # all generic values allowed
+
+    def parser(self, value):
+        return value # throughput
 
 # INTEGER TYPE
 class Integer(Field):
@@ -63,6 +78,10 @@ class Float(Field):
         if type(value) not in (int, float):
             raise TypeError("`{}` is not an integer/float.".format(value))
 
+    @staticmethod
+    def parser(value):
+        return float(value)
+
 # STRING TYPE
 class String(Field):
     def __init__(self, blank=False, default="", choices=()):
@@ -76,8 +95,8 @@ class String(Field):
 # FOREIGN KEY TYPE
 class Foreign(Field): # CHANGE ME
     def __init__(self, table, blank=False):
-        super().__init__(blank)
         self.table = table
+        super().__init__(blank)
 
     def type_check(self, value):
         if type(value) is not self.table:

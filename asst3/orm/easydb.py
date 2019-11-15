@@ -35,17 +35,25 @@ class Database:
         for table_name, cols in tables:
             if type(table_name) is not str:
                 raise TypeError("Table name `{}` is not of type str".format(table_name))
+            if table_name in table_names:
+                raise ValueError("Duplicate table names `{}`".format(table_name))
 
+            column_names = []
             for col_name, col_type in cols:
                 if type(col_name) is not str:
                     raise TypeError("Column name `{}` is not of type str".format(col_name))
-                if col_name in ("id", "pk"):
+                if col_name in column_names:
+                    raise ValueError("Duplicate column names `{}`".format(col_name))
+                if col_name in ("id", "pk", "save", "delete", "get", "filter", "count"):
                     raise ValueError("Column name `{}` is not allowed".format(col_name))
+                # if "_" in col_name:
+                #     raise ValueError("Column names cannot contain `_`: `{}`".format(col_name))
                 if io.is_foreign(col_type):
                     if col_type not in table_names:
                         raise IntegrityError("Foreign key reference `{}` does not exist".format(col_type))
                 elif col_type not in (str, float, int):
                     raise ValueError("Column type `{}` is not allowed".format(col_type))
+                column_names.append(col_name)
             table_names.append(table_name) # prevent cyclical references
 
         self.tables = [None] + list(tables) # considered dict, but need preserve order

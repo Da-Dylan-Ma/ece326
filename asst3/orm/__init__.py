@@ -57,6 +57,8 @@ def module2schema(module):
         types = []
         field2type = {orm.String: str, orm.Float: float, orm.Integer: int}
         for name, attr in cls._fields:
+            if "_" in name:
+                raise ValueError("Cannot contain `_` in column name: `{}`".format(name))
             if type(attr) is orm.Foreign:
                 primitive = attr.table.__name__
                 types.append((name, primitive))

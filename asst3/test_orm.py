@@ -114,6 +114,9 @@ class Test_easydb_interface(unittest.TestCase):
             pk, version = self.db.insert("User", self.user_data_1)
             values, version = self.db.get("User", pk)
             self.assertEqual(values, self.user_data_1)
+
+            pk2, version2 = self.db.insert("Account", [pk, "Savin2gs", 0.0])
+            values2, version2 = self.db.get("Account", pk2)
         except ObjectDoesNotExist as e:
             self.fail("db.update() raised {} unexpectedly!".format(type(e).__name__))
 
@@ -311,6 +314,13 @@ class Test_table(unittest.TestCase):
         # TODO: Add exception handling
         User.count(self.db, firstName__ne="Joe")
         User.count(self.db, firstName="Joe")
+
+    def test_error_checking(self):
+        self.assertRaises(TypeError, User, self.db, firstName="Greg", lastName="Russell", age=27.0)
+        self.assertRaises(TypeError, User, self.db, firstName=2, lastName="Russell", age=27.0)
+        greg = User(self.db, firstName="Greg", lastName="Russell", age=27)
+        account = Account(self.db, user=greg, type="Chequing", balance=100)
+        self.assertRaises(ValueError, Account, self.db, user=greg, type="Chequing2", balance=100)
 
     def test_cascade_save(self):
         greg = User(self.db, firstName="Greg", lastName="Russell", age=27)
