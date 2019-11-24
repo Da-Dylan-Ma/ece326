@@ -35,8 +35,8 @@ class MetaTable(type):
         type.__init__(cls, name, bases, attrs)
 
     def __new__(mcs, name, bases, classdict):
-        result = type.__new__(mcs, name, bases, dict(classdict))
-        result.__fields__ = list(classdict.keys())
+        result = type.__new__(mcs, name, bases, collections.OrderedDict(classdict))
+        result.__fields__ = [k for k in classdict.keys() if k[0] != "_"]
         return result
 
     # ordered introspection of class members
@@ -62,7 +62,8 @@ class MetaTable(type):
         db_cols, version = db.get(table_name, pk)
         kwargs = {}
         i = 0
-        for f_name, f_obj in cls.__dict__.items():
+        for f_name in cls.__fields__:
+            f_obj = cls.__dict__[f_name]
             if isinstance(f_obj, Field):
                 # if foreign then need to extract
                 if isinstance(f_obj, Foreign):
@@ -112,7 +113,7 @@ class MetaTable(type):
             # scan for pk not equal to 0,
             # suppose non object with pk equal to 0
             # so it will return all objects in table
-            queries.append(("pk", OP_NE, 0))
+            queries.append(("pk", OP_NE, -1))
         else:
             for col_query, rvalue in kwarg.items():
                 if "__" in col_query:
@@ -186,8 +187,11 @@ class Table(object, metaclass=MetaTable):
         if not (type(db) == Database):
             raise TypeError
         self.db = db
-        all_fields = type(self).__dict__.items()
-        for f_name, f_obj in all_fields:
+        all_fields = type(self).__dict__
+        for f_name in type(self).__fields__:
+            if f_name not in all_fields:
+                continue
+            f_obj = all_fields[f_name]
             if not isinstance(f_obj, Field):
                 continue
             if f_name in kwargs:
@@ -198,7 +202,11 @@ class Table(object, metaclass=MetaTable):
                 raise AttributeError
 
     def refresh_state(self, **kwargs):
-        for f_name, f_obj in type(self).__dict__.items():
+        all_fields = type(self).__dict__
+        for f_name in type(self).__fields__:
+            if f_name not in all_fields:
+                continue
+            f_obj = all_fields[f_name]
             if not isinstance(f_obj, Field):
                 continue
             if f_name in kwargs:
@@ -210,19 +218,29 @@ class Table(object, metaclass=MetaTable):
     # atomic: bool, True for atomic update or False for non-atomic update
     def save(self, atomic=True):
         tb_name = type(self).__name__
-        col_vals = []
-        for f_name, f_obj in type(self).__dict__.items():
+        row = []
+        all_fields = type(self).__dict__
+        for f_name in type(self).__fields__:
+            if f_name not in all_fields:
+                continue
+            f_obj = all_fields[f_name]
+            if not isinstance(f_obj, Field):
+                continue
             if not isinstance(f_obj, Field):
                 continue
             if isinstance(f_obj, Foreign):
-                ref_obj = self.__getattribute__(f_name)
-                if ref_obj is not None and ref_obj.pk is None:
-                    ref_obj.save()
-            for col_name, col_val in f_obj.db_value(self, f_name).items():
-                col_vals.append(col_val)
+                ref_obj = self.__getattribute__(f_name) # ref_obj is table type
+                if ref_obj is not None:
+                    try:
+                        ref_obj.save(atomic)
+                    except ObjectDoesNotExist:
+                        raise InvalidReference
+            for col_name, col_val in f_obj.db_value(self, f_name):
+                row.append(col_val)
+        # then check self status
         if self.pk is None:
             # call insert
-            self.pk, self.version = self.db.insert(tb_name, col_vals)
+            self.pk, self.version = self.db.insert(tb_name, row)
         else:
             # call update
             if atomic:
@@ -230,13 +248,13 @@ class Table(object, metaclass=MetaTable):
             else:
                 ver = None
             try:
-                self.version = self.db.update(tb_name, self.pk, col_vals, ver)
+                self.version = self.db.update(tb_name, self.pk, row, ver)
             except InvalidReference:
                 self.pk = None
                 raise InvalidReference
             except ObjectDoesNotExist:
                 self.pk = None
-                raise ObjectDoesNotExist
+                raise InvalidReference
         pass
 
     # Delete the row from the database.
@@ -247,3 +265,4 @@ class Table(object, metaclass=MetaTable):
         self.version = None
         pass
 
+#fcuk

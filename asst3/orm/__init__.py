@@ -113,7 +113,5 @@ def export(database_name, module):
                 created_name.add(name)
                 tb_str_l.append(table_str(tb_cls))
                 num += 1
-    ret = "".join(tb_str_l)
-    print("table exporting is {}".format(ret))
-    return ret
+    return "".join(tb_str_l)
 

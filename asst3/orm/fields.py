@@ -18,6 +18,7 @@ class Field:
         self.default = None
         self.composed = composed
         self.blank = None
+        self.choices = ()
 
 
     # which op it supported
@@ -33,11 +34,11 @@ class Field:
     # how it should be saved to
     # database
     def db_model(self, field_name):
-        return ()
+        return []
 
     # return to database values
     def db_value(self, instance,  field_name):
-        return {}
+        return []
 
 
 # notes about __set__ and __get___
@@ -72,35 +73,34 @@ class Integer(Field):
                 value = self.default
             else:
                 raise ValueError
-        elif not type(value) == int:
-            if type(value) == list and len(value) == 1:
-                self.__set__(instance, value[0])
-                return
-            else:
-                raise TypeError
-        # set value
-        self._values[instance] = value
+        elif type(value) == list and len(value) == 1:
+            self.__set__(instance, value[0])
+            return
+        elif type(value) == int:
+            self._values[instance] = value
+        else:
+            raise TypeError
         pass
 
     def __get__(self, instance, owner):
         if instance not in self._values:
             return self.default
-        val = self._values[instance]
-        # check if it is in choices
-        if not len(self.choices) == 0:
-            if val not in self.choices:
-                raise ValueError
-        return val
+        return self._values[instance]
 
     def db_model(self, field_name):
         return (field_name, int),
 
     def db_value(self, instance, field_name):
-        return {field_name: instance.__getattribute__(field_name)}
+        val = instance.__getattribute__(field_name)
+        if not len(self.choices) == 0:
+            if val not in self.choices:
+                raise ValueError
+        return [(field_name, val)]
 
     @classmethod
     def supported_op(cls):
         return ("eq", "ne", "gt", "lt")
+
 
 # FLOAT TYPE
 class Float(Field):
@@ -129,34 +129,33 @@ class Float(Field):
         # check value type
         if value is None:
             if self.blank is not None and self.blank:
-                value = self.default
+                self._values[instance] = self.default
             else:
                 raise ValueError
-        elif not (type(value) == float or type(value) == int):
-            if type(value) == list and len(value) == 1:
-                self.__set__(instance, value[0])
-                return
-            else:
-                raise TypeError
-        # set value
-        self._values[instance] = float(value)
+        elif type(value) == list and len(value) == 1:
+            self.__set__(instance, value[0])
+            return
+        elif type(value) == float or type(value) == int:
+            self._values[instance] = float(value)
+        else:
+            raise TypeError
         pass
 
     def __get__(self, instance, owner):
         if instance not in self._values:
             return self.default
         val = self._values[instance]
-        # check if it is in choices
-        if not len(self.choices) == 0:
-            if val not in self.choices:
-                raise ValueError
         return val
 
     def db_model(self, field_name):
         return (field_name, float),
 
     def db_value(self, instance, field_name):
-        return {field_name: instance.__getattribute__(field_name)}
+        val = instance.__getattribute__(field_name)
+        if not len(self.choices) == 0:
+            if val not in self.choices:
+                raise ValueError
+        return [(field_name, val)]
 
     @classmethod
     def supported_op(cls):
@@ -188,34 +187,33 @@ class String(Field):
         # check value type
         if value is None:
             if self.blank is not None and self.blank:
-                value = self.default
+                self._values[instance] = self.default
             else:
                 raise ValueError
-        elif not (type(value) == str):
-            if type(value) == list and len(value) == 1:
-                self.__set__(instance, value[0])
-                return
-            else:
-                raise TypeError
-        # set value
-        self._values[instance] = value
+        elif type(value) == list and len(value) == 1:
+            self.__set__(instance, value[0])
+            return
+        elif type(value) == str:
+            self._values[instance] = value
+        else:
+            raise TypeError
         pass
 
     def __get__(self, instance, owner):
         if instance not in self._values:
             return self.default
         val = self._values[instance]
-        # check if it is in choices
-        if not len(self.choices) == 0:
-            if val not in self.choices:
-                raise ValueError
         return val
 
     def db_model(self, field_name):
         return (field_name, str),
 
     def db_value(self, instance, field_name):
-        return {field_name: instance.__getattribute__(field_name)}
+        val = instance.__getattribute__(field_name)
+        if not len(self.choices) == 0:
+            if val not in self.choices:
+                raise ValueError
+        return[(field_name, val)]
 
     @classmethod
     def supported_op(cls):
@@ -238,17 +236,17 @@ class Foreign(Field):
         from orm.table import MetaTable
         # check value type
         if value is None:
-            if self.blank is not None and self.blank:
-                value = self.default
+            if self.blank:
+                self._values[instance] = self.default
             else:
                 raise ValueError
-        if not (type(value) == self.table):
-            if type(value) == list and len(value) == 1:
-                self.__set__(instance, value[0])
-                return
-            else:
-                raise TypeError
-        self._values[instance] = value
+        if type(value) == list and len(value) == 1:
+            self.__set__(instance, value[0])
+            return
+        elif type(value) == self.table:
+            self._values[instance] = value
+        else:
+            raise TypeError
         pass
 
     def __get__(self, instance, owner):
@@ -262,7 +260,12 @@ class Foreign(Field):
         return (field_name, self.table.__name__),
 
     def db_value(self, instance, field_name):
-        return {field_name: instance.__getattribute__(field_name).pk}
+        value = instance.__getattribute__(field_name)
+        if value is None:
+            pk = 0
+        else:
+            pk = value.pk
+        return [(field_name, pk)]
 
     @classmethod
     def supported_op(cls):
@@ -271,7 +274,7 @@ class Foreign(Field):
 
 # DATETIME TYPE
 class DateTime(Field):
-    def __init__(self, blank=None, default=None):
+    def __init__(self, blank=False, default=None):
         Field.__init__(self, True)
         if default is not None:
             if not type(default) == datetime:
@@ -279,7 +282,7 @@ class DateTime(Field):
                     raise TypeError
             blank = True
         elif blank:
-            default = datetime.now
+            default = datetime.fromtimestamp(0)
         self.default = default
         self.blank = blank
         self._values = {}
@@ -289,19 +292,18 @@ class DateTime(Field):
     def __set__(self, instance, value):
         # check value type
         if value is None:
-            if self.blank is not None and self.blank:
-                value = self.default
+            if self.blank:
+                self._values[instance] = self.default
             else:
                 raise ValueError
         if type(value) == datetime:
             self._values[instance] = float(time.mktime(value.timetuple()))
         elif callable(value):
             self._values[instance] = float(time.mktime(value().timetuple()))
-        elif type(value) == list:
-            if len(value) == 1:
-                db_val = value[0]
-                if type(db_val) == int or type(db_val) == float:
-                    self._values[instance] = float(db_val)
+        elif type(value) == list and len(value) == 1:
+            db_val = value[0]
+            if type(db_val) == int or type(db_val) == float:
+                self._values[instance] = float(db_val)
                 return
             else:
                 raise ValueError
@@ -329,7 +331,7 @@ class DateTime(Field):
             value = self._values[instance]
         else:
             value = float(time.mktime(self.get_default().timetuple()))
-        return {field_name: value}
+        return [(field_name, value)]
 
     @classmethod
     def supported_op(cls):
@@ -345,7 +347,7 @@ class DateTime(Field):
 
 # COORDINATE TYPE
 class Coordinate(Field):
-    def __init__(self, blank=None, default=None):
+    def __init__(self, blank=False, default=None):
         Field.__init__(self, True)
         if default is not None:
             self.check_value(default)
@@ -361,21 +363,20 @@ class Coordinate(Field):
 
     def check_value(self, value):
         if not type(value) == tuple and not type(value) == list:
-            raise TypeError
+            raise ValueError
         if len(value) != 2:
             raise ValueError
         for p in value:
             if not type(p) == int and not type(p) == float:
-                raise TypeError
+                raise ValueError
             if p < -180.0 or p > 180.0:
                 raise ValueError
-
 
     def __set__(self, instance, value):
         # check value type
         if value is None:
             if self.blank:
-                value = self.default
+                self._values[instance] = self.default
             else:
                 raise ValueError
         self.check_value(value)
@@ -398,7 +399,7 @@ class Coordinate(Field):
         else:
             lat = self.default[0]
             lon = self.default[1]
-        return {field_name + '_lat': lat, field_name + '_lon': lon}
+        return [(field_name + '_lat', lat), (field_name + '_lon', lon)]
 
     @classmethod
     def supported_op(cls):
