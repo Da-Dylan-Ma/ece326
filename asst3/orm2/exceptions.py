@@ -5,7 +5,7 @@
 # Definitions for all the errors in EasyORM and EasyDB
 #
 
-# customized exception for a foreign key error (e.g. cycle) in database schema
+# customized exception for a foreign key error (e.g. cycle) in database schema 
 class IntegrityError(Exception):
 	pass
 
@@ -14,11 +14,11 @@ class InvalidReference(Exception):
 	pass
 
 # customized exception for the error code NOT_FOUND (id not found)
-class ObjectDoesNotExist(Exception):
+class ObjectDoesNotExist(Exception):   
     pass
 
-# customized exception for the error code TXN_ABORT (update aborted)
-class TransactionAbort(Exception):
+# customized exception for the error code TXN_ABORT (update aborted)	
+class TransactionAbort(Exception):	
 	pass
 
 # customized exception for the error code BAD_TABLE, BAD_QUERY, BAD_VALUE, BAD_ROW, and BAD_REQUEST.

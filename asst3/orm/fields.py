@@ -4,130 +4,407 @@
 #
 # Definitions for all the fields in easyORM
 #
-# On Descriptors:
-# https://docs.python.org/3/reference/datamodel.html#implementing-descriptors
 
 from datetime import datetime
+import time
 
-# base field type, generic field
+
+# base field type
 class Field:
-    implemented = True # boolean to check whether the field is implemented
-    _values = {}
+    # Implement or change me.
+    implemented = True  # boolean to check whether the field is implemented
 
-    def __init__(self, blank=True, default=None, choices=()):
-        # Error checking
-        if default is not None:
-            self.type_check(default)
-        for choice in choices:
-            self.type_check(choice)
-
-        self.blank = blank
-        self.choices = choices
-        self.default = default
-        Field._values[self] = {}
-
-    def __get__(self, obj, objtype=None):
-        return Field._values[self][obj]
-
-    def __set__(self, obj, value):
-        # initial setup
-        if obj not in Field._values[self]:
-            if not self.blank and value is None and self.default is None: # reject blank entries
-                raise AttributeError("Field cannot be blank.")
-            if value is None: # set as default value if none provided
-                value = self.default
-        else:
-            if value is None:
-                raise AttributeError("Field cannot be blank.")
-        self.type_check(value) # sorry for calling static methods like that :>
-        value = self.parser(value)
-        if self.choices and value not in self.choices:
-            raise ValueError("`{}` is not an allowed value.".format(value))
-        Field._values[self][obj] = value
+    def __init__(self, composed=False):
+        self.default = None
+        self.composed = composed
+        self.blank = None
 
 
-    def __delete__(self, obj):
-        if not self.blank:
-            raise AttributeError("Field cannot be blank.")
-        Field._values[self][obj] = None
+    # which op it supported
+    @classmethod
+    def supported_op(cls):
+        return ("eq", "ne", "gt", "lt")
 
-    @staticmethod
-    def type_check(value):
-        pass # all generic values allowed
+    # decomp
+    def decompose(self, rval):
+        return ()
 
-    def parser(self, value):
-        return value # throughput
+    # return data base cols
+    # how it should be saved to
+    # database
+    def db_model(self, field_name):
+        return ()
 
+    # return to database values
+    def db_value(self, instance,  field_name):
+        return {}
+
+
+# notes about __set__ and __get___
+# set type could be the type it designated, for example Datetime the type could be datetime
+# and also could be a list of columns type for example, Coordinate the type could be list or tuple
+# and also can be other type, Float (int, float) both works
 # INTEGER TYPE
 class Integer(Field):
-    def __init__(self, blank=False, default=0, choices=()):
-        super().__init__(blank, default, choices)
+    def __init__(self, blank=False, default=None, choices=()):
+        # check choices right type
+        Field.__init__(self)
+        if len(choices) != 0:
+            for c in choices:
+                if not type(c) == int:
+                    raise TypeError
+        if default is not None:
+            if not type(default) == int:
+                raise TypeError
+            blank = True
+        elif blank:
+            default = 0
+        self.default = default
+        self.blank = blank
+        self.choices = choices
+        self._values = {}
+        pass
 
-    @staticmethod
-    def type_check(value):
-        if type(value) is not int:
-            raise TypeError("`{}` is not an integer.".format(value))
+    def __set__(self, instance, value):
+        # check value type
+        if value is None:
+            if self.blank:
+                value = self.default
+            else:
+                raise ValueError
+        elif not type(value) == int:
+            if type(value) == list and len(value) == 1:
+                self.__set__(instance, value[0])
+                return
+            else:
+                raise TypeError
+        # set value
+        self._values[instance] = value
+        pass
+
+    def __get__(self, instance, owner):
+        if instance not in self._values:
+            return self.default
+        val = self._values[instance]
+        # check if it is in choices
+        if not len(self.choices) == 0:
+            if val not in self.choices:
+                raise ValueError
+        return val
+
+    def db_model(self, field_name):
+        return (field_name, int),
+
+    def db_value(self, instance, field_name):
+        return {field_name: instance.__getattribute__(field_name)}
+
+    @classmethod
+    def supported_op(cls):
+        return ("eq", "ne", "gt", "lt")
 
 # FLOAT TYPE
 class Float(Field):
-    def __init__(self, blank=False, default=0., choices=()):
-        super().__init__(blank, default, choices)
+    def __init__(self, blank=False, default=None, choices=()):
+        # check choices right type
+        Field.__init__(self)
+        self.choices = set()
+        if len(choices) != 0:
+            for c in choices:
+                if not (type(c) == float or type(c) == int):
+                    raise TypeError
+                self.choices.add(float(c))
+        if default is not None:
+            if not type(default) == float and not type(default) == int:
+                raise TypeError
+            default = float(default)
+            blank = True
+        elif blank:
+            default = 0.0
+        self.default = default
+        self.blank = blank
+        self._values = {}
+        pass
 
-    @staticmethod
-    def type_check(value):
-        if type(value) not in (int, float):
-            raise TypeError("`{}` is not an integer/float.".format(value))
+    def __set__(self, instance, value):
+        # check value type
+        if value is None:
+            if self.blank is not None and self.blank:
+                value = self.default
+            else:
+                raise ValueError
+        elif not (type(value) == float or type(value) == int):
+            if type(value) == list and len(value) == 1:
+                self.__set__(instance, value[0])
+                return
+            else:
+                raise TypeError
+        # set value
+        self._values[instance] = float(value)
+        pass
 
-    @staticmethod
-    def parser(value):
-        return float(value)
+    def __get__(self, instance, owner):
+        if instance not in self._values:
+            return self.default
+        val = self._values[instance]
+        # check if it is in choices
+        if not len(self.choices) == 0:
+            if val not in self.choices:
+                raise ValueError
+        return val
+
+    def db_model(self, field_name):
+        return (field_name, float),
+
+    def db_value(self, instance, field_name):
+        return {field_name: instance.__getattribute__(field_name)}
+
+    @classmethod
+    def supported_op(cls):
+        return ("eq", "ne", "gt", "lt")
+
 
 # STRING TYPE
 class String(Field):
-    def __init__(self, blank=False, default="", choices=()):
-        super().__init__(blank, default, choices)
+    def __init__(self, blank=None, default=None, choices=()):
+        Field.__init__(self)
+        # check choices right type
+        if len(choices) != 0:
+            for c in choices:
+                if not (type(c) == str):
+                    raise TypeError
+        if default is not None:
+            if not type(default) == str:
+                raise TypeError
+            blank = True
+        elif blank:
+            default = ""
+        self.default = default
+        self.blank = blank
+        self.choices = choices
+        self._values = {}
+        pass
 
-    @staticmethod
-    def type_check(value):
-        if type(value) is not str:
-            raise TypeError("`{}` is not a string.".format(value))
+    def __set__(self, instance, value):
+        # check value type
+        if value is None:
+            if self.blank is not None and self.blank:
+                value = self.default
+            else:
+                raise ValueError
+        elif not (type(value) == str):
+            if type(value) == list and len(value) == 1:
+                self.__set__(instance, value[0])
+                return
+            else:
+                raise TypeError
+        # set value
+        self._values[instance] = value
+        pass
+
+    def __get__(self, instance, owner):
+        if instance not in self._values:
+            return self.default
+        val = self._values[instance]
+        # check if it is in choices
+        if not len(self.choices) == 0:
+            if val not in self.choices:
+                raise ValueError
+        return val
+
+    def db_model(self, field_name):
+        return (field_name, str),
+
+    def db_value(self, instance, field_name):
+        return {field_name: instance.__getattribute__(field_name)}
+
+    @classmethod
+    def supported_op(cls):
+        return ("eq", "ne", "gt", "lt")
+
 
 # FOREIGN KEY TYPE
-class Foreign(Field): # CHANGE ME
-    def __init__(self, table, blank=False):
-        self.table = table
-        super().__init__(blank)
+class Foreign(Field):
+    def __init__(self, tb, blank=False):
+        Field.__init__(self)
+        from orm.table import MetaTable
+        if not type(tb) == MetaTable:
+            raise TypeError
+        self.blank = blank
+        self.table = tb
+        self._values = {}
+        pass
 
-    def type_check(self, value):
-        if type(value) is not self.table:
-            raise TypeError("`{}` is not a valid foreign key reference.".format(value))
+    def __set__(self, instance, value):
+        from orm.table import MetaTable
+        # check value type
+        if value is None:
+            if self.blank is not None and self.blank:
+                value = self.default
+            else:
+                raise ValueError
+        if not (type(value) == self.table):
+            if type(value) == list and len(value) == 1:
+                self.__set__(instance, value[0])
+                return
+            else:
+                raise TypeError
+        self._values[instance] = value
+        pass
+
+    def __get__(self, instance, owner):
+        if instance not in self._values:
+            return None
+        # check refs
+        obj = self._values[instance]
+        return obj
+
+    def db_model(self, field_name):
+        return (field_name, self.table.__name__),
+
+    def db_value(self, instance, field_name):
+        return {field_name: instance.__getattribute__(field_name).pk}
+
+    @classmethod
+    def supported_op(cls):
+        return ("eq", "ne")
+
 
 # DATETIME TYPE
 class DateTime(Field):
-    implemented = True
-    def __init__(self, blank=False, default=None, choices=()):
-        if default is not None: default = default() # datetime functor
-        super().__init__(blank, default, choices)
+    def __init__(self, blank=None, default=None):
+        Field.__init__(self, True)
+        if default is not None:
+            if not type(default) == datetime:
+                if not callable(default):
+                    raise TypeError
+            blank = True
+        elif blank:
+            default = datetime.now
+        self.default = default
+        self.blank = blank
+        self._values = {}
+        pass
+        # composed field
 
-    @staticmethod
-    def type_check(value):
-        if type(value) is not datetime:
-            raise TypeError("`{}` is not a datetime.".format(value))
+    def __set__(self, instance, value):
+        # check value type
+        if value is None:
+            if self.blank is not None and self.blank:
+                value = self.default
+            else:
+                raise ValueError
+        if type(value) == datetime:
+            self._values[instance] = float(time.mktime(value.timetuple()))
+        elif callable(value):
+            self._values[instance] = float(time.mktime(value().timetuple()))
+        elif type(value) == list:
+            if len(value) == 1:
+                db_val = value[0]
+                if type(db_val) == int or type(db_val) == float:
+                    self._values[instance] = float(db_val)
+                return
+            else:
+                raise ValueError
+        else:
+            raise TypeError
+        pass
+
+    def __get__(self, instance, owner):
+        if instance not in self._values:
+            return self.get_default()
+        # retrive value, from time stamp
+        return datetime.fromtimestamp(float(self._values[instance]))
+
+    def get_default(self):
+        if callable(self.default):
+            return self.default()
+        else:
+            return self.default
+
+    def db_model(self, field_name):
+        return (field_name, float),
+
+    def db_value(self, instance, field_name):
+        if instance in self._values:
+            value = self._values[instance]
+        else:
+            value = float(time.mktime(self.get_default().timetuple()))
+        return {field_name: value}
+
+    @classmethod
+    def supported_op(cls):
+        return ("eq", "ne", "gt", "lt")
+
+    # decomp
+    def decompose(self, rval):
+        return (int(time.mktime(rval.timetuple())), )
+
+    def compose(self, tb_obj, values):
+        self._values[tb_obj] = values[0]
+
 
 # COORDINATE TYPE
 class Coordinate(Field):
-    implemented = True
-    def __init__(self, blank=False, default=None, choices=()):
-        super().__init__(blank, default, choices)
+    def __init__(self, blank=None, default=None):
+        Field.__init__(self, True)
+        if default is not None:
+            self.check_value(default)
+            blank = True
+        elif blank:
+            default = (0.0, 0.0)
+        self._lat_values = {}
+        self._lon_values = {}
+        self.default = default
+        self.blank = blank
+        self._values = {}
+        pass
 
-    @staticmethod
-    def type_check(value):
-        if type(value) not in (list, tuple) or len(value) != 2:
-            raise TypeError("`{}` is not a valid coordinate.".format(value))
-        if type(value[0]) not in (int, float) or type(value[1]) not in (int, float):
-            raise TypeError("`{}` are not valid coordinate types.".format(value))
-        if not (-90 <= value[0] <= 90) or not (-180 <= value[1] <= 180):
-            raise TypeError("`{}` does not contain valid coordinate values.".format(value))
+    def check_value(self, value):
+        if not type(value) == tuple and not type(value) == list:
+            raise TypeError
+        if len(value) != 2:
+            raise ValueError
+        for p in value:
+            if not type(p) == int and not type(p) == float:
+                raise TypeError
+            if p < -180.0 or p > 180.0:
+                raise ValueError
 
-if __name__ == "__main__":
-    pass
+
+    def __set__(self, instance, value):
+        # check value type
+        if value is None:
+            if self.blank:
+                value = self.default
+            else:
+                raise ValueError
+        self.check_value(value)
+        self._lat_values[instance] = value[0]
+        self._lon_values[instance] = value[1]
+        pass
+
+    def __get__(self, instance, owner):
+        if instance not in self._lat_values:
+            return self.default
+        return self._lat_values[instance], self._lon_values[instance]
+
+    def db_model(self, field_name):
+        return (field_name + '_lat', float), (field_name + '_lon', float)
+
+    def db_value(self, instance, field_name):
+        if instance in self._lat_values:
+            lat = self._lat_values[instance]
+            lon = self._lon_values[instance]
+        else:
+            lat = self.default[0]
+            lon = self.default[1]
+        return {field_name + '_lat': lat, field_name + '_lon': lon}
+
+    @classmethod
+    def supported_op(cls):
+        return ("eq", "ne")
+
+    # decomp
+    def decompose(self, rval):
+        return rval
+
