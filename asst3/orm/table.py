@@ -108,7 +108,7 @@ class MetaTable(type):
         table_name = cls.__name__
         queries = []
         op_str = "eq"
-        if kwarg == {} or len(kwarg) == 0:
+        if kwarg is None or len(kwarg) == 0:
             # scan for pk not equal to 0,
             # suppose non object with pk equal to 0
             # so it will return all objects in table
@@ -246,3 +246,4 @@ class Table(object, metaclass=MetaTable):
         self.pk = None
         self.version = None
         pass
+
