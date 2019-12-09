@@ -92,30 +92,33 @@ fn handle_insert(db: & mut Database, table_id: i32, values: Vec<Value>)
         None => return Err(Response::BAD_TABLE),
     };
     let table_cols = &table.info.t_cols;
+    if table_cols.len() != values.len() {
+        return Err(Response::BAD_ROW)
+    }
 
     // Type checking
-    for i in 0..values.len() {
-        match table_cols.get(i) {
-            Some(column) => {
-                let column_type = column.c_type;
-                let request_type = match values.get(i).unwrap() {
-                    Value::Null => Value::NULL,
-                    Value::Integer(_) => Value::INTEGER,
-                    Value::Float(_) => Value::FLOAT,
-                    Value::Text(_) => Value::STRING,
-                    Value::Foreign(v) => {
-                        let target_table = db.tables.get(&column.c_ref).unwrap();
-                        match target_table.data.get(v) {
-                            Some(_) => Value::FOREIGN,
-                            None => return Err(Response::BAD_FOREIGN)
-                        }
-                    }
+    for (i, col) in table_cols.iter().enumerate() {
+        let column = &table_cols[i];
+        let value_type = match values.get(i).unwrap() {
+            Value::Null => Value::NULL,
+            Value::Integer(_) => Value::INTEGER,
+            Value::Float(_) => Value::FLOAT,
+            Value::Text(_) => Value::STRING,
+            Value::Foreign(v) => {
+                let target_table = match db.tables.get(&column.c_ref) {
+                    Some(value) => value,
+                    None => return Err(Response::BAD_FOREIGN)
                 };
-                if request_type != column_type {
-                    return Err(Response::BAD_VALUE)
+                match target_table.data.get(v) {
+                    Some(_) => Value::FOREIGN,
+                    None => return Err(Response::BAD_FOREIGN)
                 }
-            },
-            None => return Err(Response::BAD_ROW)
+            }
+        };
+        if value_type != Value::NULL {
+            if value_type != column.c_type {
+                return Err(Response::BAD_VALUE)
+            }
         }
     }
 
@@ -140,30 +143,33 @@ fn handle_update(db: & mut Database, table_id: i32, object_id: i64,
         None => return Err(Response::BAD_TABLE),
     };
     let table_cols = &table.info.t_cols;
+    if table_cols.len() != values.len() {
+        return Err(Response::BAD_ROW)
+    }
 
     // Type checking
-    for i in 0..values.len() {
-        match table_cols.get(i) {
-            Some(column) => {
-                let column_type = column.c_type;
-                let request_type = match values.get(i).unwrap() {
-                    Value::Null => Value::NULL,
-                    Value::Integer(_) => Value::INTEGER,
-                    Value::Float(_) => Value::FLOAT,
-                    Value::Text(_) => Value::STRING,
-                    Value::Foreign(v) => {
-                        let target_table = db.tables.get(&column.c_ref).unwrap();
-                        match target_table.data.get(v) {
-                            Some(_) => Value::FOREIGN,
-                            None => return Err(Response::BAD_FOREIGN)
-                        }
-                    }
+    for (i, col) in table_cols.iter().enumerate() {
+        let column = &table_cols[i];
+        let value_type = match values.get(i).unwrap() {
+            Value::Null => Value::NULL,
+            Value::Integer(_) => Value::INTEGER,
+            Value::Float(_) => Value::FLOAT,
+            Value::Text(_) => Value::STRING,
+            Value::Foreign(v) => {
+                let target_table = match db.tables.get(&column.c_ref) {
+                    Some(value) => value,
+                    None => return Err(Response::BAD_FOREIGN)
                 };
-                if request_type != column_type {
-                    return Err(Response::BAD_VALUE)
+                match target_table.data.get(v) {
+                    Some(_) => Value::FOREIGN,
+                    None => return Err(Response::BAD_FOREIGN)
                 }
-            },
-            None => return Err(Response::BAD_ROW)
+            }
+        };
+        if value_type != Value::NULL {
+            if value_type != column.c_type {
+                return Err(Response::BAD_VALUE)
+            }
         }
     }
 
