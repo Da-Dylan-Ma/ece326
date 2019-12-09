@@ -210,13 +210,39 @@ fn handle_drop(db: & mut Database, table_id: i32, object_id: i64)
     }
     let table = db.tables.get(&table_id).unwrap(); // borrow as immutable first
 
+
     if !table.data.contains_key(&object_id) {
         return Err(Response::NOT_FOUND);
     }
     let row = table.data.get(&object_id).unwrap();
 
+    // Cascade drop!
+    let mut collect_ref = vec![];
+    let mut collect_pk = vec![];
+    for (next_table_id, next_table) in &db.tables {
+        let table_cols = &next_table.info.t_cols;
+        for (next_row_id, next_row) in &next_table.data {
+            for i in 0..table_cols.len() {
+                let pk = match next_row.values[i] {
+                    Value::Foreign(pk) => pk,
+                    _ => -1
+                };
+                let ref_id = table_cols[i].c_ref;
+                if (ref_id == table_id) & (pk == object_id) {
+                    collect_ref.push(*next_table_id);
+                    collect_pk.push(*next_row_id);
+                }
+            }
+        }
+    }
+    for i in 0..collect_ref.len() {
+        handle_drop(db, collect_ref[i], collect_pk[i]);
+    }
+
+
     let mut table = db.tables.get_mut(&table_id).unwrap(); // borrow as mutable
     table.data.remove(&object_id);
+
 
     let r = Response::Drop;
     Ok(r)
