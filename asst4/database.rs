@@ -87,13 +87,14 @@ pub fn handle_request(request: Request, db: & mut Database)
 fn handle_insert(db: & mut Database, table_id: i32, values: Vec<Value>)
     -> Result<Response, i32>
 {
-    let table = match db.tables.get(&table_id) { // borrow as immutable first
-        Some(table) => table,
-        None => return Err(Response::BAD_TABLE),
-    };
+    if !db.tables.contains_key(&table_id) {
+        return Err(Response::BAD_TABLE);
+    }
+    let table = db.tables.get(&table_id).unwrap(); // borrow as immutable first
+
     let table_cols = &table.info.t_cols;
     if table_cols.len() != values.len() {
-        return Err(Response::BAD_ROW)
+        return Err(Response::BAD_ROW);
     }
 
     // Type checking
@@ -105,19 +106,20 @@ fn handle_insert(db: & mut Database, table_id: i32, values: Vec<Value>)
             Value::Float(_) => Value::FLOAT,
             Value::Text(_) => Value::STRING,
             Value::Foreign(v) => {
-                let target_table = match db.tables.get(&column.c_ref) {
-                    Some(value) => value,
-                    None => return Err(Response::BAD_FOREIGN)
-                };
-                match target_table.data.get(v) {
-                    Some(_) => Value::FOREIGN,
-                    None => return Err(Response::BAD_FOREIGN)
+                if !db.tables.contains_key(&column.c_ref) {
+                    return Err(Response::BAD_FOREIGN);
                 }
+                let target_table = db.tables.get(&column.c_ref).unwrap();
+
+                if !target_table.data.contains_key(&v) {
+                    return Err(Response::BAD_FOREIGN);
+                }
+                Value::FOREIGN
             }
         };
         if value_type != Value::NULL {
             if value_type != column.c_type {
-                return Err(Response::BAD_VALUE)
+                return Err(Response::BAD_VALUE);
             }
         }
     }
@@ -138,13 +140,14 @@ fn handle_insert(db: & mut Database, table_id: i32, values: Vec<Value>)
 fn handle_update(db: & mut Database, table_id: i32, object_id: i64,
     version: i64, values: Vec<Value>) -> Result<Response, i32>
 {
-    let table = match db.tables.get(&table_id) { // borrow as immutable first
-        Some(table) => table,
-        None => return Err(Response::BAD_TABLE),
-    };
+    if !db.tables.contains_key(&table_id) {
+        return Err(Response::BAD_TABLE);
+    }
+    let table = db.tables.get(&table_id).unwrap(); // borrow as immutable first
+
     let table_cols = &table.info.t_cols;
     if table_cols.len() != values.len() {
-        return Err(Response::BAD_ROW)
+        return Err(Response::BAD_ROW);
     }
 
     // Type checking
@@ -156,39 +159,40 @@ fn handle_update(db: & mut Database, table_id: i32, object_id: i64,
             Value::Float(_) => Value::FLOAT,
             Value::Text(_) => Value::STRING,
             Value::Foreign(v) => {
-                let target_table = match db.tables.get(&column.c_ref) {
-                    Some(value) => value,
-                    None => return Err(Response::BAD_FOREIGN)
-                };
-                match target_table.data.get(v) {
-                    Some(_) => Value::FOREIGN,
-                    None => return Err(Response::BAD_FOREIGN)
+                if !db.tables.contains_key(&column.c_ref) {
+                    return Err(Response::BAD_FOREIGN);
                 }
+                let target_table = db.tables.get(&column.c_ref).unwrap();
+
+                if !target_table.data.contains_key(&v) {
+                    return Err(Response::BAD_FOREIGN);
+                }
+                Value::FOREIGN
             }
         };
         if value_type != Value::NULL {
             if value_type != column.c_type {
-                return Err(Response::BAD_VALUE)
+                return Err(Response::BAD_VALUE);
             }
         }
     }
 
-    let row = match table.data.get(&object_id) {
-        Some(row) => row,
-        None => return Err(Response::NOT_FOUND),
-    };
+    if !table.data.contains_key(&object_id) {
+        return Err(Response::NOT_FOUND);
+    }
+    let row = table.data.get(&object_id).unwrap();
 
     if version != 0 {
         if row.version != version {
-            return Err(Response::TXN_ABORT)
+            return Err(Response::TXN_ABORT);
         }
     }
     let new_version = row.version + 1;
 
     // Process data
     let mut table = db.tables.get_mut(&table_id).unwrap(); // borrow as mutable
-    table.data.remove(&version);
-    table.data.insert(table.count, Row {
+    table.data.remove(&object_id);
+    table.data.insert(object_id, Row {
         version: new_version,
         values: values,
     });
@@ -201,21 +205,36 @@ fn handle_update(db: & mut Database, table_id: i32, object_id: i64,
 fn handle_drop(db: & mut Database, table_id: i32, object_id: i64)
     -> Result<Response, i32>
 {
-    Err(Response::UNIMPLEMENTED)
+    if !db.tables.contains_key(&table_id) {
+        return Err(Response::BAD_TABLE);
+    }
+    let table = db.tables.get(&table_id).unwrap(); // borrow as immutable first
+
+    if !table.data.contains_key(&object_id) {
+        return Err(Response::NOT_FOUND);
+    }
+    let row = table.data.get(&object_id).unwrap();
+
+    let mut table = db.tables.get_mut(&table_id).unwrap(); // borrow as mutable
+    table.data.remove(&object_id);
+
+    let r = Response::Drop;
+    Ok(r)
 }
 
 fn handle_get(db: & Database, table_id: i32, object_id: i64)
     -> Result<Response, i32>
 {
-    let table = match db.tables.get(&table_id) { // borrow as immutable first
-        Some(table) => table,
-        None => return Err(Response::BAD_TABLE),
-    };
+    if !db.tables.contains_key(&table_id) {
+        return Err(Response::BAD_TABLE);
+    }
+    let table = db.tables.get(&table_id).unwrap(); // borrow as immutable first
 
-    let row = match table.data.get(&object_id) {
-        Some(row) => row,
-        None => return Err(Response::NOT_FOUND),
-    };
+    if !table.data.contains_key(&object_id) {
+        return Err(Response::NOT_FOUND);
+    }
+    let row = table.data.get(&object_id).unwrap();
+
     let version = row.version;
     let values = &row.values;
     let r = Response::Get(version, &values);
