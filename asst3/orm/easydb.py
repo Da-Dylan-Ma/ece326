@@ -326,7 +326,7 @@ class Database:
     #   port: int, port number.
     def connect(self, host, port):
         self.connection = socket.socket()
-        self.connection.connect((host, port))
+        self.connection.connect((host, int(port)))
 
     def send_request(self, req_len):
         # sending request
@@ -443,7 +443,7 @@ class Database:
         self.recv_check_response()
         pass
 
-    # Make the database to retrieve a row from a table, which requires 
+    # Make the database to retrieve a row from a table, which requires
     # specifying the id of the row.
     #   table_name: str, name of the table
     #   pk: int, row ID
@@ -467,10 +467,10 @@ class Database:
         values = self.unpack_row(res_body, offset)
         return values, version
 
-    # Make the database to compare a column of every row in a table against 
+    # Make the database to compare a column of every row in a table against
     # a value and returns the id of all rows that matched.
     #   table_name: str, name of the table
-    #   query: tuple, a tuple of 3 elements: name of column, the operator, 
+    #   query: tuple, a tuple of 3 elements: name of column, the operator,
     #          and the right operand, respectively
     # ("firstName", OP_GT, "hahaha")
     def scan(self, table_name, query):
@@ -509,4 +509,3 @@ class Database:
             offset += id_bytes_cnt
             pks.append(pk)
         return pks
-

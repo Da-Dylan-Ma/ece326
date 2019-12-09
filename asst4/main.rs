@@ -7,6 +7,8 @@
  * 2019
  */
 
+// .\main.exe -g 8080 default.txt 127.0.0.1
+
 mod schema;
 mod packet;
 mod server;
@@ -27,34 +29,34 @@ fn main() {
     let mut hostname = String::from("localhost");
     let mut filename = String::from("default.txt");
     let mut verbose = false;
-    
+
     if args.len() < 2 {
         return usage(&args[0]);
     }
-    
+
     /* offset args by 1 depending on whether -g option is used */
     let args = match &args[1][..] {
         "-g" => { verbose = true; &args[1..] },
         _ => &args[..],
     };
-    
+
     if args.len() < 2 || args.len() > 4 {
         return usage(&args[0]);
     }
-       
-    if args.len() == 3 {
+
+    if args.len() >= 3 {
         filename.clear();
         filename.push_str(&args[2]);
     }
-    
+
     if args.len() == 4 {
         hostname.clear();
         hostname.push_str(&args[3]);
     }
-    
+
     hostname.push_str(":");
-    hostname.push_str(&args[1]); 
-    
+    hostname.push_str(&args[1]);
+
     let tokens = match schema::tokenize(&filename) {
         Ok(tokens) => tokens,
         Err(e) => {
@@ -70,11 +72,10 @@ fn main() {
             return;
         },
     };
-   
+
     if verbose {
         println!("{:?}", table_schema);
     }
-    
+
     server::run_server(table_schema, hostname, verbose);
 }
-

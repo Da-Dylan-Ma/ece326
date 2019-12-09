@@ -34,7 +34,7 @@ impl Column {
             c_ref: cref,
         }
     }
-    
+
     fn type_as_str(& self) -> String {
         match self.c_type {
             Value::INTEGER => String::from("integer"),
@@ -68,17 +68,17 @@ pub fn tokenize(filename: &String) -> io::Result<Vec<String>> {
         }
         else if ch.is_numeric() || ch == '_' {
             if token.len() == 0 {
-                return Err(io::Error::new(io::ErrorKind::Other, 
+                return Err(io::Error::new(io::ErrorKind::Other,
                     "invalid identifier, cannot start with a number or underscore"));
             }
-            token.push(ch);    
+            token.push(ch);
         }
         else {
             if token.len() > 0 {
                 tokens.push(token);
                 token = String::new();
             }
-            
+
             if !ch.is_whitespace() {
                 tokens.push(ch.to_string());
             }
@@ -98,12 +98,12 @@ fn validate_name(name: & String) -> Result<& String, &'static str>
     Ok(name)
 }
 
-/* 
- * Parses one column in the schema, and returns the initialized column 
- * if well formed, else return an error 
+/*
+ * Parses one column in the schema, and returns the initialized column
+ * if well formed, else return an error
  */
 fn parse_column<'a, I>(it: &mut I, column_id: i32, tables: & Vec<Table>)
-    -> Result<Option<Column>, &'static str> 
+    -> Result<Option<Column>, &'static str>
     where I: Iterator<Item = &'a String>,
 {
     /* Check for ending curly bracket */
@@ -118,55 +118,55 @@ fn parse_column<'a, I>(it: &mut I, column_id: i32, tables: & Vec<Table>)
     /* Check for colon after the column name */
     match it.next() {
         Some(tok) => match tok.as_str() {
-            ":" => (), 
+            ":" => (),
             _ => return Err("expecting ':' after column name"),
         }
         None => return Err("unexpected end of file"),
     };
-    
+
     let column_type = match it.next() {
         Some(column_type) => column_type,
         None => return Err("unexpected end of file"),
     };
 
-    /* Check for semi colon after each column */               
+    /* Check for semi colon after each column */
     match it.next() {
         Some(tok) => match tok.as_str() {
-            ";" => (), 
+            ";" => (),
             _ => return Err("expecting ';' after column type"),
         }
         None => return Err("unexpected end of file"),
-    };                        
-    
+    };
+
     /* Parse one column and return */
     let column = match column_type.as_str() {
-        "integer" => 
+        "integer" =>
             Column::new(column_name.to_string(), column_id, Value::INTEGER, 0),
         "float" =>
             Column::new(column_name.to_string(), column_id, Value::FLOAT, 0),
         "string" =>
             Column::new(column_name.to_string(), column_id, Value::STRING, 0),
         _ => {
-            let index = match tables.iter().position(|t| 
+            let index = match tables.iter().position(|t|
                 column_type.as_str() == t.t_name) {
-                Some(index) => index,   
+                Some(index) => index,
                 None => return Err("cannot find reference table"),
             };
             Column::new(column_name.to_string(), column_id, Value::FOREIGN,
                 index as i32 + 1)
         }
     };
-    
+
     Ok(Some(column))
 }
 
 /* Parses a single table with columns, and returns the initialized table */
-fn parse_table<'a, I>(it: &mut I, tables: & Vec<Table>) 
+fn parse_table<'a, I>(it: &mut I, tables: & Vec<Table>)
     -> Result<Option<Table>, &'static str>
     where I: Iterator<Item = &'a String>,
 {
     let mut columns: Vec<Column> = vec![];
-    
+
     /* Check for a valid table name */
     let table_name = match it.next() {
         Some(table_name) => validate_name(table_name)?,
@@ -176,21 +176,21 @@ fn parse_table<'a, I>(it: &mut I, tables: & Vec<Table>)
     /* Check for curly brackets and columns inside table */
     match it.next() {
         Some(tok) => match tok.as_str() {
-            "{" => (), 
+            "{" => (),
             _ => return Err("expecting '{' after table name"),
         },
         None => return Err("unexpected end of file"),
     };
-    
+
     loop {
         let column_id = columns.len() as i32 + 1;
         let column = match parse_column(it, column_id, tables)? {
             Some(column) => column,
             None => break,
-        };    
+        };
         columns.push(column);
     }
-    
+
     if columns.len() == 0 {
         Err("table has no column")
     }
@@ -200,26 +200,26 @@ fn parse_table<'a, I>(it: &mut I, tables: & Vec<Table>)
     }
 }
 
-/* 
- * Iteratively parses each table from the vector of tokens and returns 
- * the vector of tables 
+/*
+ * Iteratively parses each table from the vector of tokens and returns
+ * the vector of tables
  */
 pub fn parse(tokens: Vec<String>) -> Result<Vec<Table>, &'static str> {
-    let mut tables: Vec<Table> = vec![]; 
-    
+    let mut tables: Vec<Table> = vec![];
+
     let mut it = tokens.iter();
     loop {
         let table = match parse_table(&mut it, &tables)? {
             Some(table) => table,
             None => break,
         };
-        tables.push(table);    
+        tables.push(table);
     }
-    
+
     if tables.len() == 0 {
         Err("schema file is empty")
     }
-    else {                        
+    else {
         Ok(tables)
     }
 }
@@ -240,5 +240,3 @@ impl fmt::Debug for Table {
         Ok(())
     }
 }
-
-

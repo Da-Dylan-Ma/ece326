@@ -1,2 +1,3 @@
 server
-tester*
+tester
+*.pdb

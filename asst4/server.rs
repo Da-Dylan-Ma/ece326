@@ -20,19 +20,19 @@ use database::Database;
 
 fn single_threaded(listener: TcpListener, table_schema: Vec<Table>, verbose: bool)
 {
-    /* 
+    /*
      * you probably need to use table_schema somewhere here or in
-     * Database::new 
+     * Database::new
      */
-    let mut db = Database { };
+    let mut db = Database::new(table_schema);
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
-        
+
         if verbose {
             println!("Connected to {}", stream.peer_addr().unwrap());
         }
-        
+
         match handle_connection(stream, &mut db) {
             Ok(()) => {
                 if verbose {
@@ -59,7 +59,7 @@ pub fn run_server(table_schema: Vec<Table>, ip_address: String, verbose: bool)
             return;
         },
     };
-    
+
     /*
      * TODO: replace with multi_threaded
      */
@@ -69,8 +69,8 @@ pub fn run_server(table_schema: Vec<Table>, ip_address: String, verbose: bool)
 impl Network for TcpStream {}
 
 /* Receive the request packet from ORM and send a response back */
-fn handle_connection(mut stream: TcpStream, db: & mut Database) 
-    -> io::Result<()> 
+fn handle_connection(mut stream: TcpStream, db: & mut Database)
+    -> io::Result<()>
 {
     loop {
         let request = match stream.receive() {
@@ -81,19 +81,18 @@ fn handle_connection(mut stream: TcpStream, db: & mut Database)
                 return Err(e);
             },
         };
-        
+
         /* we disconnect with client upon receiving Exit */
         if let Command::Exit = request.command {
             break;
         }
-        
+
         /* Send back a response */
         let response = database::handle_request(request, db);
-        
+
         stream.respond(&response)?;
         stream.flush()?;
     }
 
     Ok(())
 }
-
