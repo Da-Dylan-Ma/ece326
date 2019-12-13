@@ -1,0 +1,76 @@
+Overriding static starter source code:
+asst4/main.rs
+asst4/packet.rs
+asst4/schema.rs
+rustc -A unused_variables -A dead_code -o server main.rs
+warning: variable does not need to be mutable
+   --> database.rs:193:9
+    |
+193 |     let mut table = db.tables.get_mut(&table_id).unwrap(); // borrow as mutable
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+   --> database.rs:243:9
+    |
+243 |     let mut table = db.tables.get_mut(&table_id).unwrap(); // borrow as mutable
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: unused `std::result::Result` that must be used
+   --> database.rs:239:9
+    |
+239 |         handle_drop(db, collect_ref[i], collect_pk[i]);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_must_use)]` on by default
+    = note: this `Result` may be an `Err` variant, which should be handled
+
+Running: /nfs/ug/cad/cad2/ece326f/tester/scripts/lab4-01-insert.py 
+insert test
+Mark for insert test is 19 out of 20
+FAIL
+
+Running: /nfs/ug/cad/cad2/ece326f/tester/scripts/lab4-02-update.py 
+update test
+Mark for update test is 16 out of 18
+FAIL
+
+Running: /nfs/ug/cad/cad2/ece326f/tester/scripts/lab4-03-drop.py 
+drop test
+Mark for drop test is 18 out of 18
+PASS
+
+Running: /nfs/ug/cad/cad2/ece326f/tester/scripts/lab4-04-scan.py 
+scan test
+Mark for scan test is 0 out of 18
+FAIL
+
+Running: /nfs/ug/cad/cad2/ece326f/tester/scripts/lab4-05-stress.py 
+stress test
+Mark for stress test is 0 out of 11
+FAIL
+
+Running: /nfs/ug/cad/cad2/ece326f/tester/scripts/lab4-06-parallel.py 
+parallel test
+ERROR: TIMEOUT: not found: DONE (\d+)
+Mark for parallel test is 0 out of 5
+FAIL
+
+Running: /nfs/ug/cad/cad2/ece326f/tester/scripts/lab4-07-speedup.py 
+speedup test
+ERROR: TIMEOUT: not found: DONE (\d+)
+Mark for speedup test is 0 out of 5
+FAIL
+
+Running: /nfs/ug/cad/cad2/ece326f/tester/scripts/lab4-08-limit.py 
+limit test
+ERROR: TIMEOUT: function did not end
+Mark for limit test is 0 out of 5
+FAIL
+
+You have received 53 marks out of a total of 100 marks.
